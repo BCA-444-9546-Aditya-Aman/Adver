@@ -1,0 +1,58 @@
+# Environment variables and configuration
+.env
+.env.local
+.env.*.local
+
+# Database files
+*.sql.bak
+*.db
+*.sqlite
+
+# PHP sensitive files
+db_connect.php
+config.php
+secrets.php
+
+# Composer dependencies
+vendor/
+composer.lock
+
+# Node modules and build
+node_modules/
+package-lock.json
+yarn.lock
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Cache and temporary files
+*.cache
+*.tmp
+.cache/
+tmp/
+temp/
+
+# Logs
+*.log
+logs/
+
+# Build and dist
+dist/
+build/
+
+# IDE local files
+.phpstorm.meta.php
+php.ini.local

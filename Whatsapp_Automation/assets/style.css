@@ -1,0 +1,281 @@
+* { scroll-behavior: smooth; }
+body { background-color: #F7FAF8; font-family: 'Inter', sans-serif; color: #0F1F17; }
+h1,h2,h3,h4 { font-family: 'Plus Jakarta Sans', sans-serif; }
+
+/* Sticky Header container */
+.sticky-top {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  width: 100%;
+}
+
+.nav-links a {
+  position: relative;
+  transition: color 0.25s ease;
+}
+.nav-links a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  height: 2.5px;
+  width: 0;
+  background: #22C55E;
+  transition: width 0.2s ease;
+}
+.nav-links a:hover::after {
+  width: 100%;
+}
+
+/* Chat bubble animations */
+.chat-bubble { opacity: 0; transform: translateY(12px); transition: opacity 0.4s ease, transform 0.4s ease; }
+.chat-bubble.visible { opacity: 1; transform: translateY(0); }
+
+/* Floating WA button pulse */
+@keyframes pulse-green {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.5); }
+  50% { box-shadow: 0 0 0 12px rgba(34,197,94,0); }
+}
+.wa-float { animation: pulse-green 2.2s infinite; }
+
+/* Fade-in on scroll */
+.reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.55s ease, transform 0.55s ease; }
+.reveal.visible { opacity: 1; transform: translateY(0); }
+
+/* Gradient text */
+.grad-text {
+  background: linear-gradient(135deg, #16A34A 0%, #22C55E 60%, #4ade80 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Card hover */
+.feature-card { transition: transform 0.25s ease, box-shadow 0.25s ease; }
+.feature-card:hover { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(22,163,74,0.10); }
+
+/* Chat flow phone */
+.phone-shell {
+  background: #fff;
+  border-radius: 36px;
+  box-shadow: 0 24px 60px rgba(15,31,23,0.13), 0 0 0 1px #D1E8D8;
+  overflow: hidden;
+}
+.phone-header { background: #075E54; }
+.msg-in { background: #fff; border-radius: 0 14px 14px 14px; }
+.msg-out { background: #DCF8C6; border-radius: 14px 14px 0 14px; }
+
+/* Step connector line */
+.step-line { position: relative; }
+.step-line::after {
+  content: '';
+  position: absolute;
+  top: 28px; left: calc(50% + 28px);
+  width: calc(100% - 56px);
+  height: 2px;
+  background: linear-gradient(90deg, #22C55E, #D1E8D8);
+}
+
+/* Testimonial card */
+.testimonial-card { border-left: 3px solid #22C55E; }
+
+/* Form input focus */
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: #22C55E;
+  box-shadow: 0 0 0 3px rgba(34,197,94,0.15);
+}
+
+/* Floating Icons */
+@keyframes float1 { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-15px) rotate(10deg); } }
+@keyframes float2 { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-20px) rotate(-10deg); } }
+@keyframes float3 { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-10px) scale(1.05); } }
+@keyframes float4 { 0%, 100% { transform: translateY(0) translateX(0); } 50% { transform: translateY(-15px) translateX(10px); } }
+
+.float-anim-1 { animation: float1 4s ease-in-out infinite; }
+.float-anim-2 { animation: float2 5s ease-in-out infinite; }
+.float-anim-3 { animation: float3 4.5s ease-in-out infinite; }
+.float-anim-4 { animation: float4 6s ease-in-out infinite; }
+
+/* How It Works step cards */
+.how-step-card {
+  min-height: 200px;
+}
+.how-step-card:hover {
+  transform: translateY(-4px);
+}
+
+/* Phone chat scrollable - prevent outer growth */
+#flow-chat {
+  height: 420px !important;
+  max-height: 420px !important;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(34,197,94,0.3) transparent;
+}
+#flow-chat::-webkit-scrollbar {
+  width: 4px;
+}
+#flow-chat::-webkit-scrollbar-track {
+  background: transparent;
+}
+#flow-chat::-webkit-scrollbar-thumb {
+  background: rgba(34,197,94,0.3);
+  border-radius: 4px;
+}
+
+/* Typing indicator dots */
+.typing-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 4px;
+}
+.typing-dots span {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #aaa;
+  animation: typingBounce 1.2s infinite ease-in-out;
+}
+.typing-dots span:nth-child(1) { animation-delay: 0s; }
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-5px); opacity: 1; }
+}
+
+/* -- Mobile responsiveness ------------------------------------- */
+
+/* Horizontal scroll carousel for mobile cards */
+.mobile-card-scroll {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-left: 0.25rem;
+  padding-right: 1rem;
+}
+.mobile-card-scroll::-webkit-scrollbar { display: none; }
+
+/* Dot indicators */
+.carousel-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #D1E8D8;
+  transition: background 0.25s, transform 0.25s;
+  cursor: pointer;
+}
+.carousel-dot.active {
+  background: #16A34A;
+  transform: scale(1.3);
+}
+
+/* Hero section mobile fixes */
+@media (max-width: 767px) {
+  header {
+    padding-top: 1.5rem !important;
+    padding-bottom: 1.5rem !important;
+  }
+
+  /* Hero text */
+  section#hero-section, section.min-h-screen {
+    min-height: 90vh !important;
+    min-height: 90dvh !important;
+    padding-top: 110px !important;
+    padding-bottom: 48px !important;
+  }
+
+  #hero-section h1 {
+    font-size: 1.85rem !important;
+    line-height: 1.35 !important;
+    margin-bottom: 1.25rem !important;
+  }
+
+  #hero-section p {
+    font-size: 0.95rem !important;
+    line-height: 1.6 !important;
+    margin-bottom: 2rem !important;
+  }
+
+  #hero-section div.mt-5 {
+    margin-top: 2.25rem !important;
+  }
+
+  /* Button row wraps cleanly */
+  #hero-section .flex.flex-wrap a {
+    font-size: 0.8rem;
+    padding: 0.6rem 1rem;
+  }
+
+  /* Section headings */
+  h2 { font-size: 1.6rem !important; }
+
+  /* Section padding reduction */
+  section { padding-top: 3rem !important; padding-bottom: 3rem !important; }
+
+  /* How It Works flex col already */
+  
+  /* Contact left info tighter on mobile */
+  #contact .gap-8 { gap: 1.25rem !important; }
+  #contact h3 { font-size: 1.1rem; }
+  #contact .text-base { font-size: 0.82rem; }
+  #contact input, #contact select, #contact textarea {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+    font-size: 0.78rem !important;
+  }
+  #contact button[type=submit] {
+    padding-top: 0.75rem !important;
+    padding-bottom: 0.75rem !important;
+    font-size: 0.8rem !important;
+  }
+  #contact label { font-size: 0.7rem !important; }
+
+  /* Phone mockup on mobile — full width, stack vertically */
+  .phone-shell { width: 100% !important; max-width: 300px !important; }
+}
+
+/* Smooth scroll snap */
+@media (max-width: 767px) {
+  .snap-start { scroll-snap-align: start; }
+  .snap-x { scroll-snap-type: x mandatory; }
+}
+
+/* -- CSS Ticker animation ----------------------------------- */
+.ticker-track {
+  display: flex;
+  width: max-content;
+  animation: tickerScroll 28s linear infinite;
+}
+.ticker-track:hover { animation-play-state: paused; }
+@keyframes tickerScroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* -- Offer Popup animation --------------------------------- */
+@keyframes popupIn {
+  from { opacity: 0; transform: scale(0.88) translateY(20px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+#offer-popup.visible {
+  display: flex !important;
+}
+
+/* -- Hero: desktop uses background image, mobile uses gradient - */
+@media (min-width: 768px) {
+  #hero-section {
+    background-image: url('hero_bg.jpg') !important;
+    background-size: cover !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+  }
+}
+
+/* -- Popup: class-based show/hide (avoids !important conflict) - */
+#offer-popup { display: none !important; }
+#offer-popup.visible { display: flex !important; }
