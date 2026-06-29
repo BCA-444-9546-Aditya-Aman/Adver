@@ -742,8 +742,8 @@
             </div>
             <div class="field">
               <label for="f-phone">Phone <span class="req">*</span></label>
-              <input type="tel" id="f-phone" name="phone" required placeholder="+91 ***** *****" autocomplete="tel" pattern="^\+?[0-9\s\-()]{10,15}$" title="Please enter a valid phone number (10 to 15 digits).">
-              <span class="err-msg">Enter a 10-15 digit phone number.</span>
+              <input type="tel" id="f-phone" name="phone" required placeholder="10-digit phone number" autocomplete="tel" pattern="[0-9]{10}" maxlength="10" title="Please enter exactly 10 digits (e.g. 9876543210).">
+              <span class="err-msg">Enter exactly 10 digits.</span>
             </div>
           </div>
           <div class="field">

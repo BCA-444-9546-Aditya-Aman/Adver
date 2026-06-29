@@ -29,12 +29,11 @@ if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
     echo json_encode(['success' => false, 'error' => 'A valid email is required.']);
     exit;
 }
+
 if (empty($phone)) {
     echo json_encode(['success' => false, 'error' => 'Phone number is required.']);
     exit;
 }
-
-try {
     $stmt = $pdo->prepare("INSERT INTO automation_leads (name, business_name, email, phone, business_type, message) VALUES (?, ?, ?, ?, ?, ?)");
     $stmt->execute([$name, $business, $email, $phone, $business_type, $message]);
     echo json_encode(['success' => true]);

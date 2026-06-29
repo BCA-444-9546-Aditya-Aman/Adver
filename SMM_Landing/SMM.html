@@ -327,8 +327,8 @@
               </div>
               <div class="field">
                 <label for="f-phone">Phone / WhatsApp <span class="req">*</span></label>
-                <input type="tel" id="f-phone" name="phone" placeholder=" Your Phone number" autocomplete="tel" required pattern="^\+?[0-9\s\-()]{10,15}$" title="Please enter a valid phone number (10 to 15 digits).">
-                <div class="form-error">Enter a 10-15 digit phone number.</div>
+                <input type="tel" id="f-phone" name="phone" placeholder="10-digit phone number" autocomplete="tel" required pattern="[0-9]{10}" maxlength="10" title="Please enter exactly 10 digits (e.g. 9876543210).">
+                <div class="form-error">Enter exactly 10 digits.</div>
               </div>
             </div>
             <div class="field">

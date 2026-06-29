@@ -96,7 +96,7 @@ nav{
   width: 100%;
   max-width: 1400px;
   margin: 0 auto;
-  padding: 0 10%; /* Matches .hero-container */
+  padding: 0 5%; /* Matches .hero-container */
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -163,7 +163,7 @@ nav{
 /* HERO */
 .hero{
   min-height:100vh;
-  padding:170px 0 80px;
+  padding:130px 0 60px;
   display:flex;flex-direction:column;justify-content:center;
   position:relative;overflow:hidden;
 }
@@ -171,7 +171,7 @@ nav{
   width: 100%;
   max-width: 1400px;
   margin: 0 auto;
-  padding: 0 10%; /* Doubled from 5% */
+  padding: 0 5%;
   position: relative;
   display: flex;
   flex-direction: column;

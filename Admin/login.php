@@ -10,13 +10,13 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_once __DIR__ . '/../db_connect.php';
 
-    $username = isset($_POST['ad_user_login']) ? trim($_POST['ad_user_login']) : '';
+    $email = isset($_POST['ad_email_login']) ? trim($_POST['ad_email_login']) : '';
     $password = isset($_POST['ad_pass_login']) ? $_POST['ad_pass_login'] : '';
 
-    if (!empty($username) && !empty($password)) {
+    if (!empty($email) && !empty($password)) {
         try {
-            $stmt = $pdo->prepare("SELECT * FROM admin_users WHERE username = ?");
-            $stmt->execute([$username]);
+            $stmt = $pdo->prepare("SELECT * FROM admin_users WHERE email = ?");
+            $stmt->execute([$email]);
             $user = $stmt->fetch();
 
             if ($user && password_verify($password, $user['password'])) {
@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: index.php');
                 exit;
             } else {
-                $error = 'Invalid username or password.';
+                $error = 'Invalid email or password.';
             }
         } catch (\PDOException $e) {
             $error = 'Database error: ' . $e->getMessage();
@@ -252,14 +252,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
 
         <form method="POST" action="login.php" autocomplete="off">
-            <!-- Dummy inputs to catch browser autofill -->
-            <input type="text" name="username" style="position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden;" tabindex="-1" autocomplete="off">
-            <input type="password" name="password" style="position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden;" tabindex="-1" autocomplete="off">
+            <!-- Dummy inputs removed to prevent extension conflicts -->
 
             <div class="form-group">
-                <label for="username">Username</label>
+                <label for="email">Email Address</label>
                 <div class="input-wrapper">
-                    <input type="text" id="username" name="ad_user_login" class="form-control" placeholder="Enter username" required autocomplete="new-username" readonly onfocus="this.removeAttribute('readonly');">
+                    <input type="email" id="email" name="ad_email_login" class="form-control" placeholder="Enter email address" required autocomplete="off" readonly onfocus="this.removeAttribute('readonly');">
                 </div>
             </div>
             
