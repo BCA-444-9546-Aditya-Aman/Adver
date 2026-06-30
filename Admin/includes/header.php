@@ -51,10 +51,10 @@ if ($active_tab === 'admins' && !$is_super_admin) {
 }
 
 // Unread counts for sidebar badges
-$unread_web        = canAccess('web', $is_super_admin, $my_permissions)        ? getUnreadLeadsCount($pdo, 'web_leads')        : 0;
-$unread_seo        = canAccess('seo', $is_super_admin, $my_permissions)        ? getUnreadLeadsCount($pdo, 'seo_leads')        : 0;
-$unread_smm        = canAccess('smm', $is_super_admin, $my_permissions)        ? getUnreadLeadsCount($pdo, 'smm_leads')        : 0;
-$unread_automation = canAccess('automation', $is_super_admin, $my_permissions) ? getUnreadLeadsCount($pdo, 'automation_leads') : 0;
+$unread_web        = canAccess('web', $is_super_admin, $my_permissions)        ? getUnreadLeadsCount($pdo, 'web_leads', $current_admin_id)        : 0;
+$unread_seo        = canAccess('seo', $is_super_admin, $my_permissions)        ? getUnreadLeadsCount($pdo, 'seo_leads', $current_admin_id)        : 0;
+$unread_smm        = canAccess('smm', $is_super_admin, $my_permissions)        ? getUnreadLeadsCount($pdo, 'smm_leads', $current_admin_id)        : 0;
+$unread_automation = canAccess('automation', $is_super_admin, $my_permissions) ? getUnreadLeadsCount($pdo, 'automation_leads', $current_admin_id) : 0;
 
 // Fetch all sub-admins for assignment dropdown if super admin
 $all_sub_admins = [];
@@ -74,7 +74,10 @@ if ($is_super_admin) {
     <link rel="icon" type="image/png" href="./assets/favicon.png">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="./assets/style.css?v=11">
+    <link rel="stylesheet" href="./assets/style.css?v=13">
+    <script>
+        const currentActiveTab = "<?php echo $active_tab; ?>";
+    </script>
 </head>
 <body>
 
@@ -90,16 +93,16 @@ if ($is_super_admin) {
     <nav class="msb-nav">
         <a href="dashboard.php" class="msb-link <?php echo $active_tab === 'dashboard' ? 'msb-active' : ''; ?>"><i class="fa-solid fa-house"></i><span>Dashboard</span></a>
         <?php if (canAccess('web', $is_super_admin, $my_permissions)): ?>
-        <a href="leads_web.php" class="msb-link <?php echo $active_tab === 'web' ? 'msb-active' : ''; ?>"><i class="fa-solid fa-code"></i><span>Web Leads</span><?php if ($unread_web > 0): ?><span class="msb-badge" data-badge-type="web"><?php echo $unread_web; ?></span><?php endif; ?></a>
+        <a href="leads_web.php" class="msb-link <?php echo $active_tab === 'web' ? 'msb-active' : ''; ?>"><i class="fa-solid fa-code"></i><span>Web Leads</span><span class="msb-badge" data-badge-type="web" <?php echo $unread_web > 0 ? '' : 'style="display: none;"'; ?>><?php echo $unread_web; ?></span></a>
         <?php endif; ?>
         <?php if (canAccess('seo', $is_super_admin, $my_permissions)): ?>
-        <a href="leads_seo.php" class="msb-link <?php echo $active_tab === 'seo' ? 'msb-active' : ''; ?>"><i class="fa-solid fa-magnifying-glass"></i><span>SEO Leads</span><?php if ($unread_seo > 0): ?><span class="msb-badge" data-badge-type="seo"><?php echo $unread_seo; ?></span><?php endif; ?></a>
+        <a href="leads_seo.php" class="msb-link <?php echo $active_tab === 'seo' ? 'msb-active' : ''; ?>"><i class="fa-solid fa-magnifying-glass"></i><span>SEO Leads</span><span class="msb-badge" data-badge-type="seo" <?php echo $unread_seo > 0 ? '' : 'style="display: none;"'; ?>><?php echo $unread_seo; ?></span></a>
         <?php endif; ?>
         <?php if (canAccess('smm', $is_super_admin, $my_permissions)): ?>
-        <a href="leads_smm.php" class="msb-link <?php echo $active_tab === 'smm' ? 'msb-active' : ''; ?>"><i class="fa-solid fa-share-nodes"></i><span>SMM Leads</span><?php if ($unread_smm > 0): ?><span class="msb-badge" data-badge-type="smm"><?php echo $unread_smm; ?></span><?php endif; ?></a>
+        <a href="leads_smm.php" class="msb-link <?php echo $active_tab === 'smm' ? 'msb-active' : ''; ?>"><i class="fa-solid fa-share-nodes"></i><span>SMM Leads</span><span class="msb-badge" data-badge-type="smm" <?php echo $unread_smm > 0 ? '' : 'style="display: none;"'; ?>><?php echo $unread_smm; ?></span></a>
         <?php endif; ?>
         <?php if (canAccess('automation', $is_super_admin, $my_permissions)): ?>
-        <a href="leads_automation.php" class="msb-link <?php echo $active_tab === 'automation' ? 'msb-active' : ''; ?>"><i class="fa-brands fa-whatsapp"></i><span>Automation Leads</span><?php if ($unread_automation > 0): ?><span class="msb-badge" data-badge-type="automation"><?php echo $unread_automation; ?></span><?php endif; ?></a>
+        <a href="leads_automation.php" class="msb-link <?php echo $active_tab === 'automation' ? 'msb-active' : ''; ?>"><i class="fa-brands fa-whatsapp"></i><span>Automation Leads</span><span class="msb-badge" data-badge-type="automation" <?php echo $unread_automation > 0 ? '' : 'style="display: none;"'; ?>><?php echo $unread_automation; ?></span></a>
         <?php endif; ?>
         <?php if (canAccess('security', $is_super_admin, $my_permissions)): ?>
         <a href="security.php" class="msb-link <?php echo $active_tab === 'security' ? 'msb-active' : ''; ?>"><i class="fa-solid fa-shield-halved"></i><span>Security</span></a>
@@ -118,7 +121,6 @@ if ($is_super_admin) {
 
     <?php if ($is_super_admin): ?>
     <div style="padding: 0 16px 14px;">
-        <div style="font-size: 11px; color: var(--sidebar-text); margin-bottom: 4px;"><?php echo htmlspecialchars($current_display); ?></div>
         <span class="super-admin-badge"><i class="fa-solid fa-crown"></i> Super Admin</span>
     </div>
     <?php endif; ?>

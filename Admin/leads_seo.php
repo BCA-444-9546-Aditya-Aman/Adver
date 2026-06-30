@@ -8,7 +8,7 @@ $filter_month  = isset($_GET['filter_month']) ? $_GET['filter_month'] : (empty($
 $filter_status = isset($_GET['filter_status']) ? $_GET['filter_status'] : '';
 $sort          = isset($_GET['sort']) && strtolower($_GET['sort']) === 'asc' ? 'asc' : 'desc';
 
-$seo_leads = getLeads($pdo, 'seo_leads', $filter_month, $filter_status, $sort, $from_date, $to_date);
+$seo_leads = getLeads($pdo, 'seo_leads', $filter_month, $filter_status, $sort, $from_date, $to_date, $current_admin_id);
 
 $total_leads = count($seo_leads);
 $total_won = 0; $total_lost = 0;
@@ -27,21 +27,21 @@ $total_pending = $total_leads - ($total_won + $total_lost);
             <div style="background: rgba(99, 102, 241, 0.1); color: var(--primary); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px;"><i class="fa-solid fa-users"></i></div>
             <div>
                 <div style="font-size: 13px; color: var(--text-light); font-weight: 600;">Total Leads</div>
-                <div style="font-size: 24px; font-weight: 700; color: var(--text-dark); line-height: 1.2;"><?php echo $total_leads; ?></div>
+                <div style="font-size: 24px; font-weight: 700; color: var(--text-dark); line-height: 1.2;"><span id="metric-total"><?php echo $total_leads; ?></span></div>
             </div>
         </div>
         <div class="stat-card" style="background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); border: 1px solid var(--border-color); display: flex; align-items: center; gap: 15px;">
             <div style="background: rgba(16, 185, 129, 0.1); color: var(--success); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px;"><i class="fa-solid fa-handshake"></i></div>
             <div>
                 <div style="font-size: 13px; color: var(--text-light); font-weight: 600;">Total Won</div>
-                <div style="font-size: 24px; font-weight: 700; color: var(--text-dark); line-height: 1.2;"><?php echo $total_won; ?></div>
+                <div style="font-size: 24px; font-weight: 700; color: var(--text-dark); line-height: 1.2;"><span id="metric-won"><?php echo $total_won; ?></span></div>
             </div>
         </div>
         <div class="stat-card" style="background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); border: 1px solid var(--border-color); display: flex; align-items: center; gap: 15px;">
             <div style="background: rgba(245, 158, 11, 0.1); color: var(--warning); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px;"><i class="fa-solid fa-hourglass-half"></i></div>
             <div>
                 <div style="font-size: 13px; color: var(--text-light); font-weight: 600;">Total Pending</div>
-                <div style="font-size: 24px; font-weight: 700; color: var(--text-dark); line-height: 1.2;"><?php echo $total_pending; ?></div>
+                <div style="font-size: 24px; font-weight: 700; color: var(--text-dark); line-height: 1.2;"><span id="metric-pending"><?php echo $total_pending; ?></span></div>
             </div>
         </div>
     </div>
@@ -58,7 +58,7 @@ $total_pending = $total_leads - ($total_won + $total_lost);
         <div class="card-header">
             <div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="seo_lead_fltr" name="seo_lead_fltr_no_fill" placeholder="Search SEO leads..." onkeyup="filterTable(this, 'seoTable')" autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly');" value=""></div>
             <div class="card-actions">
-                <span class="lead-count-badge"><i class="fa-solid fa-list-check" style="margin-right: 5px;"></i> Total: <strong><?php echo count($seo_leads); ?></strong></span>
+                <span class="lead-count-badge"><i class="fa-solid fa-list-check" style="margin-right: 5px;"></i> Total: <strong><span id="header-total-count"><?php echo count($seo_leads); ?></span></strong></span>
                 <a href="export.php?type=seo&filter_month=<?php echo urlencode($filter_month); ?>&filter_status=<?php echo urlencode($filter_status); ?>&sort=<?php echo urlencode($sort); ?>&from_date=<?php echo urlencode($from_date); ?>&to_date=<?php echo urlencode($to_date); ?>" class="btn btn-outline"><i class="fa-solid fa-download"></i> Export CSV</a>
             </div>
         </div>

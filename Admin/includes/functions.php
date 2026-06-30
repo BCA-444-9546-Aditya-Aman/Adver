@@ -18,18 +18,28 @@ function getLeadsCount($pdo, $table, $from_date, $to_date, $exact_date) {
     } catch (\PDOException $e) { return 0; }
 }
 
-function getUnreadLeadsCount($pdo, $table) {
+function getUnreadLeadsCount($pdo, $table, $admin_id = 0) {
     try {
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM `$table` WHERE is_read = 0");
-        $stmt->execute();
+        $lead_type = str_replace('_leads', '', $table);
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) FROM `$table` t 
+            WHERE t.id NOT IN (
+                SELECT arl.lead_id FROM admin_read_leads arl 
+                WHERE arl.admin_id = ? AND arl.lead_type = ?
+            )
+        ");
+        $stmt->execute([$admin_id, $lead_type]);
         return (int)$stmt->fetchColumn();
     } catch (\PDOException $e) { return 0; }
 }
 
-function getLeads($pdo, $table, $filter_month, $filter_status, $sort, $from_date = '', $to_date = '') {
+function getLeads($pdo, $table, $filter_month, $filter_status, $sort, $from_date = '', $to_date = '', $admin_id = 0) {
     try {
         $lead_type = str_replace('_leads', '', $table);
         $sql = "SELECT t.*, (
+                    SELECT COUNT(*) FROM admin_read_leads arl 
+                    WHERE arl.admin_id = ? AND arl.lead_type = ? AND arl.lead_id = t.id
+                ) AS is_read_by_me, (
                     SELECT lsu.status 
                     FROM lead_status_updates lsu 
                     WHERE lsu.lead_type = '$lead_type' AND lsu.lead_id = t.id 
@@ -41,7 +51,7 @@ function getLeads($pdo, $table, $filter_month, $filter_status, $sort, $from_date
                     ORDER BY lsu.updated_at DESC LIMIT 1
                 ) AS latest_status_date
                 FROM `$table` t WHERE 1=1";
-        $params = [];
+        $params = [$admin_id, $lead_type];
         if (!empty($filter_month)) {
             $sql .= " AND DATE_FORMAT(t.created_at, '%Y-%m') = ?";
             $params[] = $filter_month;
@@ -67,7 +77,11 @@ function getLeads($pdo, $table, $filter_month, $filter_status, $sort, $from_date
                   CASE WHEN latest_status IN ('Closed - Won', 'Closed - Lost') THEN 1 ELSE 0 END ASC,
                   CASE WHEN latest_status IN ('Closed - Won', 'Closed - Lost') THEN latest_status_date ELSE t.created_at END $order";
         $stmt = $pdo->prepare($sql); $stmt->execute($params);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $leads = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($leads as &$lead) {
+            $lead['is_read'] = ((int)$lead['is_read_by_me'] > 0) ? 1 : 0;
+        }
+        return $leads;
     } catch (\PDOException $e) { return []; }
 }
 
@@ -116,55 +130,14 @@ function renderFilterBar($active_tab, $filter_month, $filter_status, $sort, $fro
 
 // Dashboard Data Aggregation Functions
 function getDashboardKPIs($pdo, $permissions, $is_super_admin, $filter_tab = '', $filter_month = '') {
-    $tabs = ['web', 'seo', 'smm', 'automation'];
-    $allowed_tabs = array_filter($tabs, function($tab) use ($is_super_admin, $permissions) {
-        return canAccess($tab, $is_super_admin, $permissions);
-    });
-
-    if (!empty($filter_tab) && in_array($filter_tab, $allowed_tabs)) {
-        $allowed_tabs = [$filter_tab];
-    }
-
+    $pieData = getDashboardPieChartData($pdo, $permissions, $is_super_admin, $filter_tab, $filter_month);
+    
     $kpis = [
-        'total_leads' => 0,
-        'deals_won' => 0,
-        'pending_followups' => 0,
+        'total_leads' => $pieData['total'],
+        'deals_won' => $pieData['won'],
+        'pending_followups' => $pieData['pending'],
         'conversion_rate' => 0
     ];
-
-    if (empty($allowed_tabs)) return $kpis;
-    
-    $dateFilterLeads = "";
-    $dateFilterStatus = "";
-    if (!empty($filter_month)) {
-        // Prevent SQL injection by validating format (YYYY-MM)
-        if (preg_match('/^\d{4}-\d{2}$/', $filter_month)) {
-            $dateFilterLeads = " WHERE DATE_FORMAT(created_at, '%Y-%m') = '$filter_month'";
-            $dateFilterStatus = " AND DATE_FORMAT(lsu.created_at, '%Y-%m') = '$filter_month'";
-        }
-    }
-
-    foreach ($allowed_tabs as $tab) {
-        $table = "{$tab}_leads";
-        
-        // Total leads
-        try {
-            $stmt = $pdo->query("SELECT COUNT(*) FROM `$table`$dateFilterLeads");
-            $kpis['total_leads'] += (int)$stmt->fetchColumn();
-        } catch (\PDOException $e) {}
-
-        // Deals won
-        try {
-            $stmt = $pdo->query("SELECT COUNT(DISTINCT lsu.lead_id) FROM lead_status_updates lsu WHERE lsu.lead_type = '$tab' AND lsu.status = 'Closed - Won'$dateFilterStatus");
-            $kpis['deals_won'] += (int)$stmt->fetchColumn();
-        } catch (\PDOException $e) {}
-
-        // Pending followups
-        try {
-            $stmt = $pdo->query("SELECT COUNT(DISTINCT lsu.lead_id) FROM lead_status_updates lsu WHERE lsu.lead_type = '$tab' AND lsu.status = 'Follow-Up Scheduled'$dateFilterStatus");
-            $kpis['pending_followups'] += (int)$stmt->fetchColumn();
-        } catch (\PDOException $e) {}
-    }
 
     if ($kpis['total_leads'] > 0) {
         $kpis['conversion_rate'] = round(($kpis['deals_won'] / $kpis['total_leads']) * 100, 1);

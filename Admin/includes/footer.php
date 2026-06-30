@@ -247,26 +247,36 @@ function renderTimelineSection(data, lead) {
 
     // Update status form (only for sub-admins with access)
     if (!IS_SUPER_ADMIN) {
-        html += `<div class="update-status-section" id="updateStatusSection" style="margin-bottom: 16px;">
-            <h4 style="margin-top:0;"><i class="fa-solid fa-chart-line"></i> Update Pipeline Stage</h4>
-            <label class="modal-label">Pipeline Stage</label>
-            <select class="status-select" id="pipelineStatusSelect" style="margin-bottom: 10px;">
-                <option value="">— Select a stage —</option>
-                <option value="Qualified">Qualified</option>
-                <option value="Initial Contact Made">Initial Contact Made</option>
-                <option value="Proposal Sent">Proposal Sent</option>
-                <option value="In Discussion">In Discussion</option>
-                <option value="Follow-Up Scheduled">Follow-Up Scheduled</option>
-                <option value="No Response">No Response</option>
-                <option value="Closed - Won">Closed – Won</option>
-                <option value="Closed - Lost">Closed – Lost</option>
-            </select>
-            <label class="modal-label">Internal Notes <span style="color:var(--text-light);font-weight:400;text-transform:none;">(optional)</span></label>
-            <textarea class="modal-textarea" id="pipelineNoteInput" placeholder="Describe interaction notes..." style="height:60px;min-height:60px;margin-bottom:10px;"></textarea>
-            <button class="btn btn-primary" id="pipelineSubmitBtn" onclick="submitPipelineUpdate('${lead.lead_type}', ${lead.id})" style="padding:8px 18px;border-radius:10px;font-size:12px;width:100%;justify-content:center;">
-                <i class="fa-solid fa-paper-plane"></i> Log Update
-            </button>
-        </div>`;
+        const isClosed = lead.latest_status === 'Closed - Won' || lead.latest_status === 'Closed - Lost';
+        if (isClosed) {
+            html += `<div class="update-status-section" style="margin-bottom: 16px; background: #f9fafb; border: 1px solid var(--border-color); border-radius: 12px; padding: 15px; text-align: center;">
+                <div style="color: var(--text-dark); font-weight: 600; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 4px;">
+                    <i class="fa-solid fa-lock" style="color: var(--text-light);"></i> Pipeline Locked
+                </div>
+                <div style="font-size: 11px; color: var(--text-light);">This lead has been marked as <strong>${escapeHtml(lead.latest_status)}</strong> and is now read-only.</div>
+            </div>`;
+        } else {
+            html += `<div class="update-status-section" id="updateStatusSection" style="margin-bottom: 16px;">
+                <h4 style="margin-top:0;"><i class="fa-solid fa-chart-line"></i> Update Pipeline Stage</h4>
+                <label class="modal-label">Pipeline Stage</label>
+                <select class="status-select" id="pipelineStatusSelect" style="margin-bottom: 10px;">
+                    <option value="">— Select a stage —</option>
+                    <option value="Qualified">Qualified</option>
+                    <option value="Initial Contact Made">Initial Contact Made</option>
+                    <option value="Proposal Sent">Proposal Sent</option>
+                    <option value="In Discussion">In Discussion</option>
+                    <option value="Follow-Up Scheduled">Follow-Up Scheduled</option>
+                    <option value="No Response">No Response</option>
+                    <option value="Closed - Won">Closed – Won</option>
+                    <option value="Closed - Lost">Closed – Lost</option>
+                </select>
+                <label class="modal-label">Internal Notes <span style="color:var(--text-light);font-weight:400;text-transform:none;">(optional)</span></label>
+                <textarea class="modal-textarea" id="pipelineNoteInput" placeholder="Describe interaction notes..." style="height:60px;min-height:60px;margin-bottom:10px;"></textarea>
+                <button class="btn btn-primary" id="pipelineSubmitBtn" onclick="submitPipelineUpdate('${lead.lead_type}', ${lead.id})" style="padding:8px 18px;border-radius:10px;font-size:12px;width:100%;justify-content:center;">
+                    <i class="fa-solid fa-paper-plane"></i> Log Update
+                </button>
+            </div>`;
+        }
     }
 
     // Timeline entries
@@ -664,6 +674,107 @@ window.addEventListener('DOMContentLoaded', () => {
             filterTable(input, item.table);
         }
     });
+
+    // Live update checker (runs every 15 seconds)
+    function pollLatestLeadsData() {
+        const fd = new FormData();
+        fd.append('action', 'get_latest_data');
+        fd.append('active_tab', typeof currentActiveTab !== 'undefined' ? currentActiveTab : '');
+        
+        const filterMonth = document.getElementById('filter_month');
+        const filterStatus = document.getElementById('filter_status');
+        const filterTab = document.getElementById('filter_tab');
+        const sort = document.getElementById('sort');
+        const fromDate = document.getElementById('from_date');
+        const toDate = document.getElementById('to_date');
+        
+        if (filterMonth) fd.append('filter_month', filterMonth.value);
+        if (filterStatus) fd.append('filter_status', filterStatus.value);
+        if (filterTab) fd.append('filter_tab', filterTab.value);
+        if (sort) fd.append('sort', sort.value);
+        if (fromDate) fd.append('from_date', fromDate.value);
+        if (toDate) fd.append('to_date', toDate.value);
+        
+        fetch('includes/ajax_handler.php', {
+            method: 'POST',
+            body: fd
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                // 1. Update unread badges (sidebar & mobile header)
+                if (data.unreads) {
+                    Object.keys(data.unreads).forEach(key => {
+                        const count = data.unreads[key];
+                        const sidebarBadge = document.querySelector(`.msb-badge[data-badge-type="${key}"]`);
+                        if (sidebarBadge) {
+                            sidebarBadge.textContent = count;
+                            sidebarBadge.style.display = count > 0 ? '' : 'none';
+                        }
+                        const navbarBadge = document.getElementById(`badge-${key}`);
+                        if (navbarBadge) {
+                            navbarBadge.textContent = count;
+                            navbarBadge.style.display = count > 0 ? '' : 'none';
+                        }
+                    });
+                }
+                
+                // 2. If we are on a lead page, update metrics and table HTML
+                const leadsTabs = ['web', 'seo', 'smm', 'automation'];
+                if (typeof currentActiveTab !== 'undefined' && leadsTabs.includes(currentActiveTab)) {
+                    // Update table rows
+                    const table = document.getElementById(`${currentActiveTab}Table`);
+                    if (table && data.table_html) {
+                        const tbody = table.querySelector('tbody');
+                        if (tbody) {
+                            tbody.innerHTML = data.table_html;
+                            
+                            // Re-apply search filter
+                            const searchId = currentActiveTab === 'web' ? 'w_lead_fltr' :
+                                             currentActiveTab === 'seo' ? 's_lead_fltr' :
+                                             currentActiveTab === 'smm' ? 'm_lead_fltr' : 'a_lead_fltr';
+                            const searchInput = document.getElementById(searchId);
+                            if (searchInput && searchInput.value) {
+                                filterTable(searchInput, `${currentActiveTab}Table`);
+                            }
+                        }
+                    }
+                    
+                    // Update header lead count badge
+                    const headerTotal = document.getElementById('header-total-count');
+                    if (headerTotal && typeof data.metrics !== 'undefined') {
+                        headerTotal.textContent = data.metrics.total;
+                    }
+                    
+                    // Update metrics cards
+                    if (data.metrics) {
+                        const elTotal = document.getElementById('metric-total');
+                        const elWon = document.getElementById('metric-won');
+                        const elPending = document.getElementById('metric-pending');
+                        if (elTotal) elTotal.textContent = data.metrics.total;
+                        if (elWon) elWon.textContent = data.metrics.won;
+                        if (elPending) elPending.textContent = data.metrics.pending;
+                    }
+                }
+
+                // 3. If we are on dashboard tab, update dashboard KPI cards
+                if (typeof currentActiveTab !== 'undefined' && currentActiveTab === 'dashboard' && data.dashboard_kpis) {
+                    const elTotal = document.getElementById('dashboard-total-leads');
+                    const elWon = document.getElementById('dashboard-deals-won');
+                    const elTalks = document.getElementById('dashboard-talks-in-progress');
+                    const elConv = document.getElementById('dashboard-conversion-rate');
+                    if (elTotal) elTotal.textContent = Number(data.dashboard_kpis.total_leads).toLocaleString();
+                    if (elWon) elWon.textContent = Number(data.dashboard_kpis.deals_won).toLocaleString();
+                    if (elTalks) elTalks.textContent = Number(data.dashboard_kpis.pending_followups).toLocaleString();
+                    if (elConv) elConv.textContent = data.dashboard_kpis.conversion_rate;
+                }
+            }
+        })
+        .catch(e => console.error("Live update error: ", e));
+    }
+    
+    // Check every 10 seconds
+    setInterval(pollLatestLeadsData, 10000);
 });
 
 function scrollToMetric(index) {

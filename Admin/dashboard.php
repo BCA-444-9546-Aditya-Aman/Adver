@@ -65,46 +65,46 @@ $tabNames = [
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
                     <div style="font-size: 13px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Total Leads</div>
-                    <div style="font-size: 28px; font-weight: 700; color: #111827; margin-top: 5px;"><?php echo number_format($kpis['total_leads']); ?></div>
+                    <div style="font-size: 28px; font-weight: 700; color: #111827; margin-top: 5px;"><span id="dashboard-total-leads"><?php echo number_format($kpis['total_leads']); ?></span></div>
                 </div>
                 <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(79, 70, 229, 0.1); display: flex; align-items: center; justify-content: center; color: var(--primary); font-size: 20px;">
                     <i class="fa-solid fa-users"></i>
                 </div>
             </div>
         </div>
-
+ 
         <!-- Deals Won -->
         <div class="table-card" style="padding: 20px; border-left: 4px solid var(--success);">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
                     <div style="font-size: 13px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Deals Won</div>
-                    <div style="font-size: 28px; font-weight: 700; color: #111827; margin-top: 5px;"><?php echo number_format($kpis['deals_won']); ?></div>
+                    <div style="font-size: 28px; font-weight: 700; color: #111827; margin-top: 5px;"><span id="dashboard-deals-won"><?php echo number_format($kpis['deals_won']); ?></span></div>
                 </div>
                 <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(16, 185, 129, 0.1); display: flex; align-items: center; justify-content: center; color: var(--success); font-size: 20px;">
-                    <i class="fa-solid fa-trophy"></i>
+                    <i class="fa-solid fa-crown"></i>
                 </div>
             </div>
         </div>
-
-        <!-- Pending Follow-ups -->
+ 
+        <!-- Talks in Progress -->
         <div class="table-card" style="padding: 20px; border-left: 4px solid #f59e0b;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                    <div style="font-size: 13px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Pending Follow-ups</div>
-                    <div style="font-size: 28px; font-weight: 700; color: #111827; margin-top: 5px;"><?php echo number_format($kpis['pending_followups']); ?></div>
+                    <div style="font-size: 13px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Talks in Progress</div>
+                    <div style="font-size: 28px; font-weight: 700; color: #111827; margin-top: 5px;"><span id="dashboard-talks-in-progress"><?php echo number_format($kpis['pending_followups']); ?></span></div>
                 </div>
                 <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(245, 158, 11, 0.1); display: flex; align-items: center; justify-content: center; color: #f59e0b; font-size: 20px;">
-                    <i class="fa-regular fa-clock"></i>
+                    <i class="fa-solid fa-comments"></i>
                 </div>
             </div>
         </div>
-
+ 
         <!-- Conversion Rate -->
         <div class="table-card" style="padding: 20px; border-left: 4px solid #ec4899;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
                     <div style="font-size: 13px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Conversion Rate</div>
-                    <div style="font-size: 28px; font-weight: 700; color: #111827; margin-top: 5px;"><?php echo $kpis['conversion_rate']; ?>%</div>
+                    <div style="font-size: 28px; font-weight: 700; color: #111827; margin-top: 5px;"><span id="dashboard-conversion-rate"><?php echo $kpis['conversion_rate']; ?></span>%</div>
                 </div>
                 <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(236, 72, 153, 0.1); display: flex; align-items: center; justify-content: center; color: #ec4899; font-size: 20px;">
                     <i class="fa-solid fa-chart-line"></i>

@@ -31,8 +31,8 @@ if ($action === 'mark_as_read') {
     $id   = isset($_POST['id'])   ? intval($_POST['id']) : 0;
     if ($id > 0 && in_array($type, ['web', 'seo', 'smm', 'automation'])) {
         try {
-            $table = "{$type}_leads";
-            $pdo->prepare("UPDATE `$table` SET is_read = 1 WHERE id = ?")->execute([$id]);
+            $pdo->prepare("INSERT IGNORE INTO admin_read_leads (admin_id, lead_type, lead_id) VALUES (?, ?, ?)")
+                ->execute([$current_admin_id, $type, $id]);
             echo json_encode(['success' => true]);
         } catch (\PDOException $e) {
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
@@ -140,6 +140,18 @@ if ($action === 'update_lead_status') {
             echo json_encode(['success' => false, 'error' => 'You do not have access to this lead tab.']); exit;
         }
 
+        // Check if current status is already Closed - Won or Closed - Lost
+        $chk_status = $pdo->prepare("
+            SELECT status FROM lead_status_updates 
+            WHERE lead_type = ? AND lead_id = ? 
+            ORDER BY updated_at DESC LIMIT 1
+        ");
+        $chk_status->execute([$lead_type, $lead_id]);
+        $current_latest = $chk_status->fetchColumn();
+        if ($current_latest === 'Closed - Won' || $current_latest === 'Closed - Lost') {
+            echo json_encode(['success' => false, 'error' => 'This lead is Closed and cannot be modified again.']); exit;
+        }
+
         $ins = $pdo->prepare("INSERT INTO lead_status_updates (lead_type, lead_id, updated_by, status, description) VALUES (?, ?, ?, ?, ?)");
         $ins->execute([$lead_type, $lead_id, $current_admin_id, $status, $description ?: null]);
         echo json_encode(['success' => true, 'message' => 'Pipeline stage updated.']);
@@ -189,5 +201,130 @@ if ($action === 'get_lead_timeline') {
     } catch (\PDOException $e) {
         echo json_encode(['success' => false, 'timeline' => []]);
     }
+    exit;
+}
+
+if ($action === 'get_latest_data') {
+    require_once __DIR__ . '/functions.php';
+    
+    // Fetch permissions for current admin
+    $my_permissions = [];
+    if (!$is_super_admin && $current_admin_id) {
+        try {
+            $p_stmt = $pdo->prepare("SELECT tab, can_access FROM admin_permissions WHERE admin_id = ?");
+            $p_stmt->execute([$current_admin_id]);
+            while ($row = $p_stmt->fetch()) {
+                if ((bool)$row['can_access']) {
+                    $my_permissions[] = $row['tab'];
+                }
+            }
+        } catch (\PDOException $e) {}
+    }
+    
+    // Calculate unread counts
+    $unreads = [];
+    $tabs = ['web', 'seo', 'smm', 'automation'];
+    foreach ($tabs as $t) {
+        $unreads[$t] = 0;
+        if ($is_super_admin || in_array($t, $my_permissions)) {
+            $table = "{$t}_leads";
+            $unreads[$t] = getUnreadLeadsCount($pdo, $table, $current_admin_id);
+        }
+    }
+    
+    $response = [
+        'success' => true,
+        'unreads' => $unreads
+    ];
+    
+    $active_tab = isset($_POST['active_tab']) ? $_POST['active_tab'] : '';
+    if ($active_tab === 'dashboard') {
+        $filter_tab   = isset($_POST['filter_tab']) ? $_POST['filter_tab'] : '';
+        $filter_month = isset($_POST['filter_month']) ? $_POST['filter_month'] : '';
+        
+        $kpis = getDashboardKPIs($pdo, $my_permissions, $is_super_admin, $filter_tab, $filter_month);
+        $response['dashboard_kpis'] = $kpis;
+    }
+    if (in_array($active_tab, ['web', 'seo', 'smm', 'automation'])) {
+        $filter_month  = isset($_POST['filter_month']) ? $_POST['filter_month'] : '';
+        $filter_status = isset($_POST['filter_status']) ? $_POST['filter_status'] : '';
+        $sort          = isset($_POST['sort']) && strtolower($_POST['sort']) === 'asc' ? 'asc' : 'desc';
+        $from_date     = isset($_POST['from_date']) ? $_POST['from_date'] : '';
+        $to_date       = isset($_POST['to_date']) ? $_POST['to_date'] : '';
+        
+        $table_name = "{$active_tab}_leads";
+        $leads = getLeads($pdo, $table_name, $filter_month, $filter_status, $sort, $from_date, $to_date, $current_admin_id);
+        
+        $total_leads = count($leads);
+        $total_won = 0;
+        $total_lost = 0;
+        foreach ($leads as $l) {
+            if ($l['latest_status'] === 'Closed - Won') $total_won++;
+            elseif ($l['latest_status'] === 'Closed - Lost') $total_lost++;
+        }
+        $total_pending = $total_leads - ($total_won + $total_lost);
+        
+        $response['metrics'] = [
+            'total' => $total_leads,
+            'won' => $total_won,
+            'pending' => $total_pending
+        ];
+        
+        // Generate table HTML
+        $table_html = '';
+        if (empty($leads)) {
+            $table_html = '<tr><td colspan="5" class="no-leads"><i class="fa-regular fa-folder-open"></i> No ' . $active_tab . ' leads captured yet.</td></tr>';
+        } else {
+            $map_status_classes = [
+                'Qualified' => 'status-qualified',
+                'Initial Contact Made' => 'status-contacted',
+                'Proposal Sent' => 'status-proposal',
+                'In Discussion' => 'status-discussion',
+                'Follow-Up Scheduled' => 'status-followup',
+                'No Response' => 'status-noresponse',
+                'Closed - Won' => 'status-won',
+                'Closed - Lost' => 'status-lost'
+            ];
+            
+            $display_names = [
+                'web' => 'Web Design',
+                'seo' => 'SEO Audit',
+                'smm' => 'SMM Audit',
+                'automation' => 'WhatsApp Automation'
+            ];
+            
+            foreach ($leads as $lead) {
+                $lead_js = array_merge($lead, ['lead_type' => $active_tab, 'display_type' => $display_names[$active_tab]]);
+                $status_label = $lead['latest_status'] ?: 'Untouched';
+                $status_class = $map_status_classes[$status_label] ?? 'status-noresponse';
+                if ($status_label === 'Untouched') $status_class = 'status-noresponse';
+                
+                $unread_class = !$lead['is_read'] ? 'unread-row' : '';
+                $unread_dot = !$lead['is_read'] ? '<span class="unread-dot"></span>' : '';
+                
+                $lead_json = htmlspecialchars(json_encode($lead_js, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_QUOT), ENT_HTML5, 'UTF-8');
+                
+                $table_html .= '<tr class="lead-row ' . $unread_class . '" ';
+                $table_html .= 'data-id="' . $lead['id'] . '" ';
+                $table_html .= 'data-type="' . $active_tab . '" ';
+                $table_html .= 'data-lead=\'' . $lead_json . '\' ';
+                $table_html .= 'onclick="rowClick(this,event)" ';
+                $table_html .= 'oncontextmenu="rowContext(this,event)" ';
+                $table_html .= 'style="cursor: pointer;">';
+                
+                $table_html .= '<td style="font-weight: 600;">' . $unread_dot . htmlspecialchars($lead['name']) . '</td>';
+                $table_html .= '<td><a href="mailto:' . htmlspecialchars($lead['email']) . '" onclick="event.stopPropagation()" style="color: inherit; text-decoration: none;">' . htmlspecialchars($lead['email']) . '</a></td>';
+                $table_html .= '<td><a href="tel:' . htmlspecialchars($lead['phone']) . '" onclick="event.stopPropagation()" style="color: inherit; text-decoration: none;">' . htmlspecialchars($lead['phone']) . '</a></td>';
+                $table_html .= '<td>' . htmlspecialchars($lead_js['display_type']) . '</td>';
+                $table_html .= '<td><span class="status-badge ' . $status_class . '">' . htmlspecialchars($status_label) . '</span></td>';
+                
+                $table_html .= '</tr>';
+            }
+        }
+        
+        $response['table_html'] = $table_html;
+    }
+    
+    echo json_encode($response);
     exit;
 }
