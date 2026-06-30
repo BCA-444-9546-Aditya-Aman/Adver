@@ -330,6 +330,40 @@ function submitPipelineUpdate(lead_type, lead_id) {
     fetch('includes/ajax_handler.php',{method:'POST',body:fd}).then(r=>r.json()).then(data=>{
         if (data.success) {
             showToastMsg(data.message || 'Pipeline stage logged.');
+            
+            // Dynamically update the table row status cell
+            const row = document.querySelector(`tr[data-id="${lead_id}"][data-type="${lead_type}"]`);
+            if (row) {
+                const badge = row.querySelector('.timeline-badge');
+                if (badge) {
+                    badge.textContent = status;
+                    badge.className = 'timeline-badge';
+                    const mapClasses = {
+                        'Qualified':              'status-qualified',
+                        'Initial Contact Made':   'status-contacted',
+                        'Proposal Sent':          'status-proposal',
+                        'In Discussion':          'status-discussion',
+                        'Follow-Up Scheduled':    'status-followup',
+                        'No Response':            'status-noresponse',
+                        'Closed - Won':           'status-won',
+                        'Closed - Lost':          'status-lost'
+                    };
+                    const newCls = mapClasses[status] || 'status-noresponse';
+                    badge.classList.add(newCls);
+                }
+                
+                // Update data-lead JSON so reopening details contains the new status
+                try {
+                    const leadData = JSON.parse(row.getAttribute('data-lead'));
+                    leadData.latest_status = status;
+                    row.setAttribute('data-lead', JSON.stringify(leadData));
+                } catch (e) {
+                    console.error('Error updating row lead data:', e);
+                }
+                
+                reorderTableRow(row, status);
+            }
+
             const fd2 = new FormData();
             fd2.append('action', 'get_lead_timeline');
             fd2.append('lead_type', lead_type);
@@ -347,6 +381,36 @@ function submitPipelineUpdate(lead_type, lead_id) {
             btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Log Update';
         }
     }).catch(()=>{ btn.disabled=false; btn.innerHTML='<i class="fa-solid fa-paper-plane"></i> Log Update'; });
+}
+
+function reorderTableRow(row, status) {
+    const tbody = row.parentNode;
+    if (!tbody) return;
+
+    if (status === 'Closed - Won' || status === 'Closed - Lost') {
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        let firstClosedRow = null;
+        for (const r of rows) {
+            if (r === row) continue;
+            try {
+                const leadData = JSON.parse(r.getAttribute('data-lead'));
+                if (leadData && (leadData.latest_status === 'Closed - Won' || leadData.latest_status === 'Closed - Lost')) {
+                    firstClosedRow = r;
+                    break;
+                }
+            } catch(e) {}
+        }
+        if (firstClosedRow) {
+            tbody.insertBefore(row, firstClosedRow);
+        } else {
+            tbody.appendChild(row);
+        }
+    } else {
+        const firstRow = tbody.querySelector('tr');
+        if (firstRow && firstRow !== row) {
+            tbody.insertBefore(row, firstRow);
+        }
+    }
 }
 
 function closeLeadModal() {
@@ -551,6 +615,41 @@ function togglePasswordVisibility(inputId, btnEl) {
 })();
 
 window.addEventListener('DOMContentLoaded', () => {
+    // Auto-dismiss page load toast if exists and force correct styling
+    const toast = document.getElementById('toast');
+    if (toast) {
+        toast.style.position = 'fixed';
+        toast.style.bottom = '24px';
+        toast.style.left = window.innerWidth > 768 ? 'calc(50% + 130px)' : '50%';
+        toast.style.transform = 'translateX(-50%)';
+        toast.style.zIndex = '10000';
+        
+        setTimeout(() => {
+            toast.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            toast.style.opacity = '0';
+            toast.style.transform = 'translate(-50%, 50px)';
+            setTimeout(() => {
+                toast.style.display = 'none';
+                toast.style.opacity = '';
+                toast.style.transform = '';
+            }, 500);
+        }, 4000);
+    }
+
+    // Sync Metrics Carousel Dots on Mobile (Leads Pages)
+    const metricsContainer = document.getElementById('metricsCardsContainer');
+    const mDots = document.querySelectorAll('.metrics-dot');
+    if (metricsContainer && mDots.length > 0) {
+        metricsContainer.addEventListener('scroll', () => {
+            const width = metricsContainer.getBoundingClientRect().width;
+            const index = Math.round(metricsContainer.scrollLeft / width);
+            mDots.forEach((dot, i) => {
+                if (i === index) dot.classList.add('active');
+                else dot.classList.remove('active');
+            });
+        });
+    }
+
     const list = [
         {id: 'w_lead_fltr', table: 'webTable'},
         {id: 's_lead_fltr', table: 'seoTable'},
@@ -566,6 +665,17 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+function scrollToMetric(index) {
+    const metricsContainer = document.getElementById('metricsCardsContainer');
+    if (metricsContainer) {
+        const width = metricsContainer.getBoundingClientRect().width;
+        metricsContainer.scrollTo({
+            left: index * width,
+            behavior: 'smooth'
+        });
+    }
+}
 </script>
 
 </body>

@@ -2,11 +2,13 @@
 $active_tab = 'web';
 require_once __DIR__ . '/includes/header.php';
 
-$filter_month  = isset($_GET['filter_month']) ? $_GET['filter_month'] : date('Y-m');
+$from_date     = isset($_GET['from_date']) ? $_GET['from_date'] : '';
+$to_date       = isset($_GET['to_date']) ? $_GET['to_date'] : '';
+$filter_month  = isset($_GET['filter_month']) ? $_GET['filter_month'] : (empty($from_date) && empty($to_date) ? date('Y-m') : '');
 $filter_status = isset($_GET['filter_status']) ? $_GET['filter_status'] : '';
 $sort          = isset($_GET['sort']) && strtolower($_GET['sort']) === 'asc' ? 'asc' : 'desc';
 
-$web_leads = getLeads($pdo, 'web_leads', $filter_month, $filter_status, $sort);
+$web_leads = getLeads($pdo, 'web_leads', $filter_month, $filter_status, $sort, $from_date, $to_date);
 
 $total_leads = count($web_leads);
 $total_won = 0; $total_lost = 0;
@@ -20,7 +22,7 @@ $total_pending = $total_leads - ($total_won + $total_lost);
 <div class="dashboard-section active" id="tab-web">
     <div class="content-header"><div class="header-title"><h1>Web Development Leads</h1><p>Enquiries collected from Web Landing page packages &amp; modal forms.</p></div></div>
     
-    <div class="metrics-cards" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px; margin-top: 15px;">
+    <div class="metrics-cards-container" id="metricsCardsContainer">
         <div class="stat-card" style="background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); border: 1px solid var(--border-color); display: flex; align-items: center; gap: 15px;">
             <div style="background: rgba(99, 102, 241, 0.1); color: var(--primary); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px;"><i class="fa-solid fa-users"></i></div>
             <div>
@@ -44,13 +46,20 @@ $total_pending = $total_leads - ($total_won + $total_lost);
         </div>
     </div>
 
-    <?php renderFilterBar($active_tab, $filter_month, $filter_status, $sort); ?>
+    <!-- Dot Indicators for Mobile Metrics Carousel -->
+    <div class="metrics-dots-container">
+        <span class="metrics-dot active" onclick="scrollToMetric(0)"></span>
+        <span class="metrics-dot" onclick="scrollToMetric(1)"></span>
+        <span class="metrics-dot" onclick="scrollToMetric(2)"></span>
+    </div>
+
+    <?php renderFilterBar($active_tab, $filter_month, $filter_status, $sort, $from_date, $to_date); ?>
     <div class="table-card" style="margin-top: 20px;">
         <div class="card-header">
             <div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="w_lead_fltr" name="w_lead_fltr_no_fill" placeholder="Search web leads..." onkeyup="filterTable(this, 'webTable')" autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly');" value=""></div>
             <div class="card-actions">
                 <span class="lead-count-badge"><i class="fa-solid fa-list-check" style="margin-right: 5px;"></i> Total: <strong><?php echo count($web_leads); ?></strong></span>
-                <a href="export.php?type=web&filter_month=<?php echo urlencode($filter_month); ?>&filter_status=<?php echo urlencode($filter_status); ?>&sort=<?php echo urlencode($sort); ?>" class="btn btn-outline"><i class="fa-solid fa-download"></i> Export CSV</a>
+                <a href="export.php?type=web&filter_month=<?php echo urlencode($filter_month); ?>&filter_status=<?php echo urlencode($filter_status); ?>&sort=<?php echo urlencode($sort); ?>&from_date=<?php echo urlencode($from_date); ?>&to_date=<?php echo urlencode($to_date); ?>" class="btn btn-outline"><i class="fa-solid fa-download"></i> Export CSV</a>
             </div>
         </div>
         <div class="table-responsive">

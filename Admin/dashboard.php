@@ -8,7 +8,7 @@ $filter_month = isset($_GET['filter_month']) ? $_GET['filter_month'] : date('Y-m
 // Fetch Data
 $kpis = getDashboardKPIs($pdo, $my_permissions, $is_super_admin, $filter_tab, $filter_month);
 $chartData = getMonthlyChartData($pdo, $my_permissions, $is_super_admin, 3);
-$untouchedLeads = getRecentUntouchedLeads($pdo, $my_permissions, $is_super_admin, 5);
+$pieData = getDashboardPieChartData($pdo, $my_permissions, $is_super_admin, $filter_tab, $filter_month);
 
 $tabNames = [
     'web' => 'Web Leads',
@@ -26,33 +26,40 @@ $tabNames = [
     <div class="content-header" style="margin-bottom: 25px; width: 100%; justify-content: flex-start; text-align: left;">
         <div class="header-title" style="text-align: left; width: 100%;">
             <h1>Dashboard</h1>
-            <p>Welcome back, <?php echo htmlspecialchars($current_display); ?>! Here is your performance overview.</p>
+            <p>Welcome back, <strong style="font-weight: 700; color: #111827;"><?php echo htmlspecialchars($current_display); ?></strong>! Here is your performance overview.</p>
         </div>
     </div>
 
     <!-- Filter Bar -->
     <div style="margin-bottom: 25px; width: 100%;">
-        <form method="GET" action="" style="display: flex; align-items: center; gap: 15px;">
-            <label for="filter_tab" style="font-weight: 600; color: #4b5563;"><i class="fa-solid fa-filter"></i> Filter KPIs by Service:</label>
-            <select name="filter_tab" id="filter_tab" onchange="this.form.submit()" style="padding: 10px 15px; border-radius: 8px; border: 1px solid #d1d5db; outline: none; font-family: 'Outfit', sans-serif; font-size: 14px; min-width: 200px;">
-                <option value="">All Services</option>
-                <?php foreach ($tabNames as $tabKey => $tabName): ?>
-                    <?php if (canAccess($tabKey, $is_super_admin, $my_permissions)): ?>
-                        <option value="<?php echo htmlspecialchars($tabKey); ?>" <?php echo $filter_tab === $tabKey ? 'selected' : ''; ?>><?php echo htmlspecialchars($tabName); ?></option>
-                    <?php endif; ?>
-                <?php endforeach; ?>
-            </select>
+        <form method="GET" action="" class="filter-bar" style="margin-bottom: 25px; display: flex; align-items: center; gap: 12px; padding: 10px 15px; flex-wrap: wrap;">
+            <div class="filter-group">
+                <label for="filter_tab" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: flex; align-items: center; gap: 5px;"><i class="fa-solid fa-filter"></i> Service:</label>
+                <select name="filter_tab" id="filter_tab" class="filter-control" onchange="this.form.submit()" style="font-size: 12px; padding: 4px 8px; min-width: 150px;">
+                    <option value="">All Services</option>
+                    <?php foreach ($tabNames as $tabKey => $tabName): ?>
+                        <?php if (canAccess($tabKey, $is_super_admin, $my_permissions)): ?>
+                            <option value="<?php echo htmlspecialchars($tabKey); ?>" <?php echo $filter_tab === $tabKey ? 'selected' : ''; ?>><?php echo htmlspecialchars($tabName); ?></option>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                </select>
+            </div>
             
-            <input type="month" name="filter_month" id="filter_month" value="<?php echo htmlspecialchars($filter_month); ?>" onchange="this.form.submit()" style="padding: 9px 15px; border-radius: 8px; border: 1px solid #d1d5db; outline: none; font-family: 'Outfit', sans-serif; font-size: 14px;">
+            <div class="filter-group">
+                <label for="filter_month" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: flex; align-items: center; gap: 5px;"><i class="fa-regular fa-calendar-days"></i> Month:</label>
+                <input type="month" name="filter_month" id="filter_month" class="filter-control" style="font-size: 12px; padding: 4px 8px; max-width: 110px;" value="<?php echo htmlspecialchars($filter_month); ?>" onchange="this.form.submit()">
+            </div>
             
             <?php if ($filter_tab !== '' || $filter_month !== date('Y-m')): ?>
-                <a href="dashboard.php" class="btn btn-outline" style="padding: 9px 15px; font-size: 14px; border-radius: 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;"><i class="fa-solid fa-rotate-left"></i> Reset</a>
+                <div style="display: flex; gap: 6px; margin-left: auto;">
+                    <a href="dashboard.php" class="btn btn-outline btn-sm" style="padding: 4px 8px; font-size: 12px; border-radius: 6px;"><i class="fa-solid fa-rotate-left"></i> Reset</a>
+                </div>
             <?php endif; ?>
         </form>
     </div>
 
     <!-- KPI Cards -->
-    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; width: 100%;">
+    <div class="kpi-container" id="kpiCardsContainer">
         <!-- Total Leads -->
         <div class="table-card" style="padding: 20px; border-left: 4px solid var(--primary);">
             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -105,9 +112,17 @@ $tabNames = [
             </div>
         </div>
     </div>
+    
+    <!-- Dot Indicators for Mobile KPI Carousel -->
+    <div class="kpi-dots-container">
+        <span class="kpi-dot active" onclick="scrollToKpi(0)"></span>
+        <span class="kpi-dot" onclick="scrollToKpi(1)"></span>
+        <span class="kpi-dot" onclick="scrollToKpi(2)"></span>
+        <span class="kpi-dot" onclick="scrollToKpi(3)"></span>
+    </div>
 
     <!-- Chart and Needs Attention Row -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 100%; margin-bottom: 30px;">
+    <div class="dashboard-grid">
         
         <!-- Chart Section -->
         <div class="table-card" style="padding: 24px; height: 100%;">
@@ -123,39 +138,35 @@ $tabNames = [
             </div>
         </div>
 
-        <!-- Needs Attention -->
+        <!-- Pie Chart Section -->
         <div class="table-card" style="padding: 24px; height: 100%;">
-            <h3 style="font-size: 16px; font-weight: 600; color: #111827; margin: 0 0 15px 0;"><i class="fa-solid fa-circle-exclamation" style="color: #ef4444; margin-right: 8px;"></i> Needs Attention (Recent Untouched)</h3>
-            
-            <?php if (empty($untouchedLeads)): ?>
-                <div style="padding: 30px; text-align: center; color: var(--text-muted); background: #f9fafb; border-radius: 12px; border: 1px dashed #e5e7eb;">
-                    <i class="fa-regular fa-face-smile" style="font-size: 24px; margin-bottom: 10px; color: var(--success);"></i>
-                    <p>Great job! You have no untouched leads right now.</p>
+            <h3 style="font-size: 16px; font-weight: 600; color: #111827; margin: 0 0 20px 0;"><i class="fa-solid fa-chart-pie" style="color: #6366f1; margin-right: 8px;"></i> Lead Conversion & Status Breakdown</h3>
+            <?php if ($pieData['total'] == 0): ?>
+                <div style="padding: 40px 20px; text-align: center; color: var(--text-muted); background: #f9fafb; border-radius: 12px; border: 1px dashed #e5e7eb; height: calc(100% - 40px); display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                    <i class="fa-solid fa-chart-pie" style="font-size: 32px; margin-bottom: 12px; color: #cbd5e1;"></i>
+                    <p style="margin: 0; font-size: 14px;">No data available for the selected filters.</p>
                 </div>
             <?php else: ?>
-                <div class="table-responsive">
-                    <table class="table" style="font-size: 13px;">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Service</th>
-                                <th>Email</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($untouchedLeads as $lead): ?>
-                                <tr>
-                                    <td style="font-weight: 600; white-space: nowrap;"><?php echo htmlspecialchars($lead['name']); ?></td>
-                                    <td><span class="badge" style="background: rgba(79,70,229,0.1); color: var(--primary); font-size: 11px; padding: 2px 6px;"><?php echo $tabNames[$lead['tab_type']] ?? $lead['tab_type']; ?></span></td>
-                                    <td style="max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="<?php echo htmlspecialchars($lead['email']); ?>"><?php echo htmlspecialchars($lead['email']); ?></td>
-                                    <td>
-                                        <a href="leads_<?php echo $lead['tab_type']; ?>.php" class="btn btn-outline" style="padding: 2px 6px; font-size: 11px; border-radius: 4px;">View</a>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
+                <div style="position: relative; height: 200px; width: 100%; display: flex; justify-content: center; align-items: center;">
+                    <canvas id="pieChart"></canvas>
+                </div>
+                <!-- Mini legends with percentages and counts -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 25px; text-align: center; font-size: 12px; border-top: 1px solid #f3f4f6; padding-top: 15px;">
+                    <div>
+                        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: #10b981; margin-right: 4px;"></span>
+                        <span style="font-weight: 600; color: #4b5563;">Won: <?php echo $pieData['won']; ?></span>
+                        <div style="font-size: 11px; color: #9ca3af; margin-top: 2px;"><?php echo $pieData['won_percent']; ?>%</div>
+                    </div>
+                    <div>
+                        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: #ef4444; margin-right: 4px;"></span>
+                        <span style="font-weight: 600; color: #4b5563;">Lost: <?php echo $pieData['lost']; ?></span>
+                        <div style="font-size: 11px; color: #9ca3af; margin-top: 2px;"><?php echo $pieData['lost_percent']; ?>%</div>
+                    </div>
+                    <div>
+                        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: #f59e0b; margin-right: 4px;"></span>
+                        <span style="font-weight: 600; color: #4b5563;">Pending: <?php echo $pieData['pending']; ?></span>
+                        <div style="font-size: 11px; color: #9ca3af; margin-top: 2px;"><?php echo $pieData['pending_percent']; ?>%</div>
+                    </div>
                 </div>
             <?php endif; ?>
         </div>
@@ -291,7 +302,79 @@ function updateChart(type) {
 // Initialize chart with Leads Captured on page load
 document.addEventListener('DOMContentLoaded', function() {
     updateChart('leads_captured');
+    
+    // Initialize Pie/Doughnut Chart
+    const pieData = <?php echo json_encode($pieData); ?>;
+    if (document.getElementById('pieChart') && pieData.total > 0) {
+        const pieCtx = document.getElementById('pieChart').getContext('2d');
+        new Chart(pieCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Won (Closed - Won)', 'Lost (Closed - Lost)', 'Pending / Active'],
+                datasets: [{
+                    data: [pieData.won, pieData.lost, pieData.pending],
+                    backgroundColor: [
+                        '#10b981', // green
+                        '#ef4444', // red
+                        '#f59e0b'  // amber
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(17, 24, 39, 0.9)',
+                        titleFont: { family: "'Outfit', sans-serif", size: 13 },
+                        bodyFont: { family: "'Outfit', sans-serif", size: 12 },
+                        padding: 10,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.parsed;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                return ` ${context.label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
 });
+
+// Sync KPI Carousel Dots on Mobile
+const kpiContainer = document.getElementById('kpiCardsContainer');
+const dots = document.querySelectorAll('.kpi-dot');
+if (kpiContainer && dots.length > 0) {
+    kpiContainer.addEventListener('scroll', () => {
+        const width = kpiContainer.getBoundingClientRect().width;
+        const index = Math.round(kpiContainer.scrollLeft / width);
+        dots.forEach((dot, i) => {
+            if (i === index) dot.classList.add('active');
+            else dot.classList.remove('active');
+        });
+    });
+}
+
+function scrollToKpi(index) {
+    const kpiContainer = document.getElementById('kpiCardsContainer');
+    if (kpiContainer) {
+        const width = kpiContainer.getBoundingClientRect().width;
+        kpiContainer.scrollTo({
+            left: index * width,
+            behavior: 'smooth'
+        });
+    }
+}
 </script>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

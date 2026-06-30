@@ -183,10 +183,9 @@ input:focus, textarea:focus, select:focus {
 
   /* Hero text */
   section#hero-section, section.min-h-screen {
-    min-height: 90vh !important;
-    min-height: 90dvh !important;
-    padding-top: 110px !important;
-    padding-bottom: 48px !important;
+    min-height: auto !important;
+    padding-top: 85px !important;
+    padding-bottom: 36px !important;
   }
 
   #hero-section h1 {
@@ -237,6 +236,14 @@ input:focus, textarea:focus, select:focus {
 
   /* Phone mockup on mobile — full width, stack vertically */
   .phone-shell { width: 100% !important; max-width: 300px !important; }
+
+  /* Ticker mobile height increase */
+  .ticker-container {
+    height: 48px !important;
+  }
+  .ticker-track {
+    height: 48px !important;
+  }
 }
 
 /* Smooth scroll snap */
@@ -246,10 +253,14 @@ input:focus, textarea:focus, select:focus {
 }
 
 /* -- CSS Ticker animation ----------------------------------- */
+.ticker-container {
+  height: 36px;
+}
 .ticker-track {
   display: flex;
   width: max-content;
   animation: tickerScroll 28s linear infinite;
+  height: 36px;
 }
 .ticker-track:hover { animation-play-state: paused; }
 @keyframes tickerScroll {
@@ -269,7 +280,7 @@ input:focus, textarea:focus, select:focus {
 /* -- Hero: desktop uses background image, mobile uses gradient - */
 @media (min-width: 768px) {
   #hero-section {
-    background-image: url('hero_bg.jpg') !important;
+    background-image: url('hero_bg_optimized.webp') !important;
     background-size: cover !important;
     background-position: center !important;
     background-repeat: no-repeat !important;

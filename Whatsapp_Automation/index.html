@@ -8,7 +8,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500&display=swap" rel="stylesheet"/>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="assets/tailwind.config.js"></script>
-  <link rel="stylesheet" href="assets/style.css" />
+  <link rel="stylesheet" href="assets/style.css?v=2" />
 </head>
 <body class="antialiased">
 
@@ -127,10 +127,10 @@
   </section>
 
   <!-- MARQUEE TICKER -->
-  <div class="relative overflow-hidden bg-green-dark" style="height:36px;">
+  <div class="relative overflow-hidden bg-green-dark ticker-container">
     <div class="absolute inset-y-0 left-0 w-12 md:w-24 z-10 pointer-events-none" style="background:linear-gradient(to right,#16A34A,transparent);"></div>
     <div class="absolute inset-y-0 right-0 w-12 md:w-24 z-10 pointer-events-none" style="background:linear-gradient(to left,#16A34A,transparent);"></div>
-    <div class="ticker-track flex items-center" style="height:36px;">
+    <div class="ticker-track flex items-center">
       <!-- Repeated twice for seamless loop -->
       <div class="ticker-inner flex items-center gap-8 shrink-0" aria-hidden="false">
         <div class="flex items-center gap-2 shrink-0">

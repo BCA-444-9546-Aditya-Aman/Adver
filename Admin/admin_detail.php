@@ -107,7 +107,7 @@ $tab_defs = [
     <link rel="icon" type="image/png" href="./assets/favicon.png">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="./assets/style.css?v=7">
+    <link rel="stylesheet" href="./assets/style.css?v=11">
     <style>
         .save-bar {
             position: fixed; bottom: 0; left: 260px; right: 0;

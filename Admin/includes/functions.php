@@ -26,7 +26,7 @@ function getUnreadLeadsCount($pdo, $table) {
     } catch (\PDOException $e) { return 0; }
 }
 
-function getLeads($pdo, $table, $filter_month, $filter_status, $sort) {
+function getLeads($pdo, $table, $filter_month, $filter_status, $sort, $from_date = '', $to_date = '') {
     try {
         $lead_type = str_replace('_leads', '', $table);
         $sql = "SELECT t.*, (
@@ -34,12 +34,25 @@ function getLeads($pdo, $table, $filter_month, $filter_status, $sort) {
                     FROM lead_status_updates lsu 
                     WHERE lsu.lead_type = '$lead_type' AND lsu.lead_id = t.id 
                     ORDER BY lsu.updated_at DESC LIMIT 1
-                ) AS latest_status 
+                ) AS latest_status, (
+                    SELECT lsu.updated_at 
+                    FROM lead_status_updates lsu 
+                    WHERE lsu.lead_type = '$lead_type' AND lsu.lead_id = t.id 
+                    ORDER BY lsu.updated_at DESC LIMIT 1
+                ) AS latest_status_date
                 FROM `$table` t WHERE 1=1";
         $params = [];
         if (!empty($filter_month)) {
             $sql .= " AND DATE_FORMAT(t.created_at, '%Y-%m') = ?";
             $params[] = $filter_month;
+        }
+        if (!empty($from_date) && empty($to_date)) {
+            $sql .= " AND DATE(t.created_at) = ?";
+            $params[] = $from_date;
+        } elseif (!empty($from_date) && !empty($to_date)) {
+            $sql .= " AND DATE(t.created_at) BETWEEN ? AND ?";
+            $params[] = $from_date;
+            $params[] = $to_date;
         }
         if (!empty($filter_status)) {
             if ($filter_status === 'Untouched') {
@@ -49,38 +62,54 @@ function getLeads($pdo, $table, $filter_month, $filter_status, $sort) {
                 $params[] = $filter_status;
             }
         }
-        $sql .= " ORDER BY t.created_at " . ($sort === 'asc' ? 'ASC' : 'DESC');
+        $order = ($sort === 'asc') ? 'ASC' : 'DESC';
+        $sql .= " ORDER BY 
+                  CASE WHEN latest_status IN ('Closed - Won', 'Closed - Lost') THEN 1 ELSE 0 END ASC,
+                  CASE WHEN latest_status IN ('Closed - Won', 'Closed - Lost') THEN latest_status_date ELSE t.created_at END $order";
         $stmt = $pdo->prepare($sql); $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (\PDOException $e) { return []; }
 }
 
-function renderFilterBar($active_tab, $filter_month, $filter_status, $sort) { 
+function renderFilterBar($active_tab, $filter_month, $filter_status, $sort, $from_date = '', $to_date = '') { 
     $statuses = ['Untouched', 'Qualified', 'Initial Contact Made', 'Proposal Sent', 'In Discussion', 'Follow-Up Scheduled', 'No Response', 'Closed - Won', 'Closed - Lost'];
 ?>
-    <form method="GET" action="" class="filter-bar" style="margin-bottom: 25px; margin-top: 15px;">
+    <form method="GET" action="" class="filter-bar" style="margin-bottom: 25px; margin-top: 15px; display: flex; align-items: center; gap: 12px; padding: 10px 15px; flex-wrap: wrap;">
         <div class="filter-group">
-            <label for="filter_month"><i class="fa-regular fa-calendar-days"></i> Month/Year:</label>
-            <input type="month" id="filter_month" name="filter_month" class="filter-control" value="<?php echo htmlspecialchars($filter_month); ?>" onchange="this.form.submit()">
+            <label for="filter_month" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: flex; align-items: center; gap: 5px;"><i class="fa-regular fa-calendar-days"></i> Month:</label>
+            <input type="month" id="filter_month" name="filter_month" class="filter-control" style="font-size: 12px; padding: 4px 8px; max-width: 110px;" value="<?php echo htmlspecialchars($filter_month); ?>" onchange="this.form.submit()">
         </div>
+        
         <div class="filter-group">
-            <label for="filter_status"><i class="fa-solid fa-filter"></i> Status:</label>
-            <select id="filter_status" name="filter_status" class="filter-control" onchange="this.form.submit()">
+            <label for="from_date" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: flex; align-items: center; gap: 5px;"><i class="fa-solid fa-calendar-day"></i> From:</label>
+            <input type="date" id="from_date" name="from_date" class="filter-control" style="font-size: 12px; padding: 4px 8px; max-width: 115px; min-width: auto;" value="<?php echo htmlspecialchars($from_date); ?>" onchange="this.form.submit()">
+        </div>
+        
+        <div class="filter-group">
+            <label for="to_date" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: flex; align-items: center; gap: 5px;"><i class="fa-solid fa-calendar-day"></i> To:</label>
+            <input type="date" id="to_date" name="to_date" class="filter-control" style="font-size: 12px; padding: 4px 8px; max-width: 115px; min-width: auto;" value="<?php echo htmlspecialchars($to_date); ?>" onchange="this.form.submit()">
+        </div>
+
+        <div class="filter-group">
+            <label for="filter_status" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: flex; align-items: center; gap: 5px;"><i class="fa-solid fa-filter"></i> Status:</label>
+            <select id="filter_status" name="filter_status" class="filter-control" style="font-size: 12px; padding: 4px 8px; max-width: 130px;" onchange="this.form.submit()">
                 <option value="">All Statuses</option>
                 <?php foreach ($statuses as $st): ?>
                 <option value="<?php echo htmlspecialchars($st); ?>" <?php echo $filter_status === $st ? 'selected' : ''; ?>><?php echo htmlspecialchars($st); ?></option>
                 <?php endforeach; ?>
             </select>
         </div>
+        
         <div class="filter-group">
-            <label for="sort"><i class="fa-solid fa-arrow-down-z-a"></i> Sort By Date:</label>
-            <select id="sort" name="sort" class="filter-control" onchange="this.form.submit()">
-                <option value="desc" <?php echo $sort === 'desc' ? 'selected' : ''; ?>>Newest First</option>
-                <option value="asc"  <?php echo $sort === 'asc'  ? 'selected' : ''; ?>>Oldest First</option>
+            <label for="sort" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: flex; align-items: center; gap: 5px;"><i class="fa-solid fa-arrow-down-z-a"></i> Sort:</label>
+            <select id="sort" name="sort" class="filter-control" style="font-size: 12px; padding: 4px 8px; max-width: 100px;" onchange="this.form.submit()">
+                <option value="desc" <?php echo $sort === 'desc' ? 'selected' : ''; ?>>Newest</option>
+                <option value="asc"  <?php echo $sort === 'asc'  ? 'selected' : ''; ?>>Oldest</option>
             </select>
         </div>
-        <div style="display: flex; gap: 8px; margin-left: auto;">
-            <a href="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>" class="btn btn-outline btn-sm"><i class="fa-solid fa-arrow-rotate-left"></i> Reset</a>
+        
+        <div style="display: flex; gap: 6px; margin-left: auto;">
+            <a href="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>" class="btn btn-outline btn-sm" style="padding: 4px 8px; font-size: 12px; border-radius: 6px;"><i class="fa-solid fa-arrow-rotate-left"></i> Reset</a>
         </div>
     </form>
 <?php }
@@ -222,3 +251,69 @@ function getRecentUntouchedLeads($pdo, $permissions, $is_super_admin, $limit = 5
 
     return array_slice($untouched_leads, 0, $limit);
 }
+
+function getDashboardPieChartData($pdo, $permissions, $is_super_admin, $filter_tab = '', $filter_month = '') {
+    $tabs = ['web', 'seo', 'smm', 'automation'];
+    $allowed_tabs = array_filter($tabs, function($tab) use ($is_super_admin, $permissions) {
+        return canAccess($tab, $is_super_admin, $permissions);
+    });
+
+    if (!empty($filter_tab) && in_array($filter_tab, $allowed_tabs)) {
+        $allowed_tabs = [$filter_tab];
+    }
+
+    $data = [
+        'won' => 0,
+        'lost' => 0,
+        'pending' => 0,
+        'total' => 0,
+        'won_percent' => 0,
+        'lost_percent' => 0,
+        'pending_percent' => 0
+    ];
+
+    if (empty($allowed_tabs)) return $data;
+
+    foreach ($allowed_tabs as $tab) {
+        $table = "{$tab}_leads";
+        $sql = "SELECT t.id, (
+                    SELECT lsu.status 
+                    FROM lead_status_updates lsu 
+                    WHERE lsu.lead_type = '$tab' AND lsu.lead_id = t.id 
+                    ORDER BY lsu.updated_at DESC LIMIT 1
+                ) AS latest_status 
+                FROM `$table` t WHERE 1=1";
+        $params = [];
+        if (!empty($filter_month)) {
+            $sql .= " AND DATE_FORMAT(t.created_at, '%Y-%m') = ?";
+            $params[] = $filter_month;
+        }
+
+        try {
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            $leads = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            foreach ($leads as $l) {
+                $data['total']++;
+                $status = $l['latest_status'];
+                if ($status === 'Closed - Won') {
+                    $data['won']++;
+                } elseif ($status === 'Closed - Lost') {
+                    $data['lost']++;
+                } else {
+                    $data['pending']++;
+                }
+            }
+        } catch (\PDOException $e) {}
+    }
+
+    if ($data['total'] > 0) {
+        $data['won_percent'] = round(($data['won'] / $data['total']) * 100, 1);
+        $data['lost_percent'] = round(($data['lost'] / $data['total']) * 100, 1);
+        $data['pending_percent'] = round(($data['pending'] / $data['total']) * 100, 1);
+    }
+
+    return $data;
+}
+

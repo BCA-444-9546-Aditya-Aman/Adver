@@ -39,6 +39,8 @@ if (!in_array($type, ['web', 'seo', 'smm', 'automation']) || !canAccess($type, $
 $sort          = isset($_GET['sort']) && $_GET['sort'] === 'asc' ? 'asc' : 'desc';
 $filter_month  = isset($_GET['filter_month']) ? trim($_GET['filter_month'])  : '';
 $filter_status = isset($_GET['filter_status']) ? trim($_GET['filter_status']) : '';
+$from_date     = isset($_GET['from_date']) ? trim($_GET['from_date']) : '';
+$to_date       = isset($_GET['to_date']) ? trim($_GET['to_date']) : '';
 
 $filename = "{$type}_leads_" . date('Y-m-d') . ".csv";
 header('Content-Type: text/csv');
@@ -61,7 +63,7 @@ if ($type === 'web') {
     $keys = ['id', 'name', 'business_name', 'email', 'phone', 'business_type', 'message', 'latest_status', 'created_at'];
 }
 
-$leads = getLeads($pdo, $table, $filter_month, $filter_status, $sort);
+$leads = getLeads($pdo, $table, $filter_month, $filter_status, $sort, $from_date, $to_date);
 
 foreach ($leads as $lead) {
     $row = [];
