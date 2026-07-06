@@ -574,6 +574,19 @@ tr:hover td {
     animation: modalSlide 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Hide scrollbar for modal containers but keep them scrollable */
+.modal-content::-webkit-scrollbar,
+.modal-body::-webkit-scrollbar,
+.timeline-section::-webkit-scrollbar {
+    display: none !important;
+}
+.modal-content,
+.modal-body,
+.timeline-section {
+    -ms-overflow-style: none !important;
+    scrollbar-width: none !important;
+}
+
 @keyframes modalSlide {
     from { transform: translateY(20px); opacity: 0; }
     to { transform: translateY(0); opacity: 1; }
@@ -1342,6 +1355,10 @@ tr.unread-row td {
     }
 
     /* ── Modal: full-width on phone ─────────── */
+    .modal {
+        padding-left: 20px;
+    }
+
     .modal-content {
         border-radius: 16px;
         max-height: 90vh;

@@ -6,6 +6,7 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
 }
 
 require_once __DIR__ . '/../db_connect.php';
+require_once __DIR__ . '/includes/functions.php';
 
 // Get current admin
 try {
@@ -46,6 +47,9 @@ if ($target_admin['is_super_admin']) {
     exit;
 }
 
+$from = isset($_GET['from']) ? $_GET['from'] : 'admins';
+$filter_month = isset($_GET['filter_month']) ? $_GET['filter_month'] : '';
+
 // Fetch current permissions
 $permissions = [];
 try {
@@ -60,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
     // Update permissions
     if ($_POST['action'] === 'update_permissions') {
-        $tabs  = ['web','seo','smm','automation','security'];
+        $tabs  = ['web','seo','smm','automation','security','analytics'];
         $perms = isset($_POST['permissions']) ? (array)$_POST['permissions'] : [];
         try {
             $ups = $pdo->prepare("INSERT INTO admin_permissions (admin_id, tab, can_access) VALUES (?,?,?) ON DUPLICATE KEY UPDATE can_access = VALUES(can_access)");
@@ -96,6 +100,7 @@ $tab_defs = [
     'smm'        => ['label' => 'SMM Leads',          'icon' => 'fa-solid fa-share-nodes',    'desc' => 'Can view and export SMM leads'],
     'automation' => ['label' => 'Automation Leads',   'icon' => 'fa-brands fa-whatsapp',      'desc' => 'Can view and export Automation leads'],
     'security'   => ['label' => 'Security',           'icon' => 'fa-solid fa-shield-halved',  'desc' => 'Can change their own password'],
+    'analytics'  => ['label' => 'Leaderboard',        'icon' => 'fa-solid fa-ranking-star',   'desc' => 'Can view the admin performance ranking leaderboard'],
 ];
 ?>
 <!DOCTYPE html>
@@ -107,7 +112,7 @@ $tab_defs = [
     <link rel="icon" type="image/png" href="./assets/favicon.png">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="./assets/style.css?v=13">
+    <link rel="stylesheet" href="./assets/style.css?v=15">
     <style>
         .save-bar {
             position: fixed; bottom: 0; left: 260px; right: 0;
@@ -152,7 +157,11 @@ $tab_defs = [
 
     <!-- Breadcrumb -->
     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 28px; font-size: 13px; color: var(--text-muted);">
-        <a href="index.php?tab=admins" style="color: var(--primary); text-decoration: none; font-weight: 600;"><i class="fa-solid fa-arrow-left" style="margin-right: 5px;"></i> Admin Management</a>
+        <?php if ($from === 'leaderboard'): ?>
+            <a href="analytics.php" style="color: var(--primary); text-decoration: none; font-weight: 600;"><i class="fa-solid fa-arrow-left" style="margin-right: 5px;"></i> Leaderboard</a>
+        <?php else: ?>
+            <a href="index.php?tab=admins" style="color: var(--primary); text-decoration: none; font-weight: 600;"><i class="fa-solid fa-arrow-left" style="margin-right: 5px;"></i> Admin Management</a>
+        <?php endif; ?>
         <span style="color: var(--text-light);">/</span>
         <span><?php echo htmlspecialchars($dname); ?></span>
     </div>
@@ -210,6 +219,113 @@ $tab_defs = [
                     <?php endforeach; ?>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Performance Month Filter -->
+    <div style="margin-top: 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+        <h3 style="font-size: 16px; font-weight: 700; color: #111827; margin: 0; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-chart-line" style="color:var(--primary);"></i> Performance Analytics
+        </h3>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <label for="filter_month" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: flex; align-items: center; gap: 4px;"><i class="fa-regular fa-calendar-days"></i> Month:</label>
+            <input type="month" name="filter_month" id="filter_month" class="filter-control" style="font-size: 12px; padding: 4px 8px; max-width: 120px;" value="<?php echo htmlspecialchars($filter_month); ?>" onchange="filterPerformance()">
+            <button type="button" id="reset_btn" class="btn btn-outline btn-sm" style="display: <?php echo $filter_month !== '' ? 'inline-block' : 'none'; ?>; padding: 4px 8px; font-size: 11px; border-radius: 6px;" onclick="resetPerformanceFilter()"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+        </div>
+    </div>
+
+    <!-- Performance Analytics Card -->
+    <div class="admin-detail-card" style="margin-top: 16px;">
+        <?php 
+        $perf = getSpecificAdminPerformance($pdo, $target_id, $filter_month);
+        ?>
+        
+        <div class="metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px;">
+            <div class="metric-card" style="border: 1px solid var(--border-color); box-shadow: none; padding: 16px;">
+                <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px;">Leads Handled</div>
+                <div style="font-size: 20px; font-weight: 700; color: #111827;" id="perf_handled"><?php echo $perf['handled_count']; ?></div>
+            </div>
+            <div class="metric-card" style="border: 1px solid var(--border-color); box-shadow: none; padding: 16px;">
+                <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px;">Deals Won</div>
+                <div style="font-size: 20px; font-weight: 700; color: #166534;" id="perf_won"><?php echo $perf['won_count']; ?></div>
+            </div>
+            <div class="metric-card" style="border: 1px solid var(--border-color); box-shadow: none; padding: 16px;">
+                <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px;">Conversion Rate</div>
+                <div style="font-size: 20px; font-weight: 700; color: var(--primary);" id="perf_rate"><?php echo $perf['conversion_rate']; ?>%</div>
+            </div>
+            <div class="metric-card" style="border: 1px solid var(--border-color); box-shadow: none; padding: 16px;">
+                <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px;">Avg Response</div>
+                <div style="font-size: 20px; font-weight: 700; color: #111827;" id="perf_response"><?php echo formatResponseTime($perf['avg_response_minutes']); ?></div>
+            </div>
+            <div class="metric-card" style="border: 1px solid var(--border-color); box-shadow: none; padding: 16px;">
+                <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px;">Avg Close Time</div>
+                <div style="font-size: 20px; font-weight: 700; color: #111827;" id="perf_close"><?php echo formatResponseTime($perf['avg_conversion_minutes']); ?></div>
+            </div>
+        </div>
+        
+        <!-- Category breakdown -->
+        <div style="font-size: 13px; font-weight: 700; color: #374151; margin-bottom: 12px; margin-top: 24px;">Category Performance Breakdown</div>
+        <div class="table-responsive" style="border: 1px solid var(--border-color); border-radius: 12px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left;">
+                <thead>
+                    <tr style="background: #fbfbfa; border-bottom: 1px solid var(--border-color);">
+                        <th style="padding: 12px 16px; color: var(--text-muted); font-size:11px; font-weight: 700;">Service Category</th>
+                        <th style="padding: 12px 16px; color: var(--text-muted); font-size:11px; font-weight: 700; text-align: center;">Leads Handled</th>
+                        <th style="padding: 12px 16px; color: var(--text-muted); font-size:11px; font-weight: 700; text-align: center;">Deals Won</th>
+                        <th style="padding: 12px 16px; color: var(--text-muted); font-size:11px; font-weight: 700; text-align: center;">Conversion Rate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php 
+                    $cats = ['web' => 'Web Leads', 'seo' => 'SEO Leads', 'smm' => 'SMM Leads', 'automation' => 'Automation Leads'];
+                    foreach ($cats as $cat_key => $cat_name): 
+                        // Fetch stats specifically for this category
+                        $cat_handled = 0;
+                        $cat_won = 0;
+                        try {
+                            $month_q = '';
+                            $params_q = [$target_id, $cat_key];
+                            if (!empty($filter_month)) {
+                                $month_q = " AND al.created_at LIKE ?";
+                                $params_q[] = $filter_month . '%';
+                            }
+                            
+                            $lead_table = "{$cat_key}_leads";
+                            $sql = "SELECT COUNT(DISTINCT lsu.lead_id) 
+                                    FROM lead_status_updates lsu
+                                    JOIN `$lead_table` al ON al.id = lsu.lead_id
+                                    WHERE lsu.updated_by = ? AND lsu.lead_type = ? $month_q";
+                            $stmt = $pdo->prepare($sql);
+                            $stmt->execute($params_q);
+                            $cat_handled = (int)$stmt->fetchColumn();
+
+                            $cat_won_params = array_merge([$cat_key], $params_q);
+                            $sql = "SELECT COUNT(DISTINCT lsu.lead_id) 
+                                    FROM lead_status_updates lsu
+                                    JOIN (
+                                        SELECT lead_id, MAX(id) as max_id
+                                        FROM lead_status_updates
+                                        WHERE lead_type = ?
+                                        GROUP BY lead_id
+                                    ) latest ON lsu.id = latest.max_id
+                                    JOIN `$lead_table` al ON al.id = lsu.lead_id
+                                    WHERE lsu.updated_by = ? AND lsu.lead_type = ? AND lsu.status = 'Closed - Won' $month_q";
+                            $stmt = $pdo->prepare($sql);
+                            $stmt->execute($cat_won_params);
+                            $cat_won = (int)$stmt->fetchColumn();
+                        } catch (\PDOException $e) {}
+                        
+                        $cat_rate = $cat_handled > 0 ? round(($cat_won / $cat_handled) * 100, 1) : 0;
+                    ?>
+                        <tr style="border-bottom: 1px solid var(--border-color);" id="cat_row_<?php echo $cat_key; ?>">
+                            <td style="padding: 12px 16px; font-weight: 600; color: #111827;"><?php echo $cat_name; ?></td>
+                            <td style="padding: 12px 16px; text-align: center; color: #4b5563;"><?php echo $cat_handled; ?></td>
+                            <td style="padding: 12px 16px; text-align: center; color: #166534; font-weight: 600;"><?php echo $cat_won; ?></td>
+                            <td style="padding: 12px 16px; text-align: center; font-weight: 700; color: #111827;"><?php echo $cat_rate; ?>%</td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
         </div>
     </div>
 
@@ -326,6 +442,54 @@ function togglePermissions() {
 
 window.addEventListener('keydown', e => { if (e.key==='Escape') closeDeleteModal(); });
 window.addEventListener('click', e => { if (e.target===document.getElementById('deleteConfirmModal')) closeDeleteModal(); });
+
+function filterPerformance() {
+    const filterMonth = document.getElementById('filter_month').value;
+    const resetBtn = document.getElementById('reset_btn');
+    
+    if (filterMonth !== '') {
+        resetBtn.style.display = 'inline-block';
+    } else {
+        resetBtn.style.display = 'none';
+    }
+    
+    const fd = new FormData();
+    fd.append('action', 'get_admin_performance');
+    fd.append('admin_id', ADMIN_DETAIL_ID);
+    fd.append('filter_month', filterMonth);
+    
+    fetch('includes/ajax_handler.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                // Update metrics
+                document.getElementById('perf_handled').textContent = data.metrics.handled_count;
+                document.getElementById('perf_won').textContent = data.metrics.won_count;
+                document.getElementById('perf_rate').textContent = data.metrics.conversion_rate + '%';
+                document.getElementById('perf_response').textContent = data.metrics.avg_response_formatted;
+                document.getElementById('perf_close').textContent = data.metrics.avg_conversion_formatted;
+                
+                // Update categories table rows
+                data.categories.forEach(cat => {
+                    const row = document.getElementById('cat_row_' + cat.key);
+                    if (row) {
+                        const tds = row.getElementsByTagName('td');
+                        if (tds.length >= 4) {
+                            tds[1].textContent = cat.handled;
+                            tds[2].textContent = cat.won;
+                            tds[3].textContent = cat.rate + '%';
+                        }
+                    }
+                });
+            }
+        })
+        .catch(e => console.error("Error filtering performance: ", e));
+}
+
+function resetPerformanceFilter() {
+    document.getElementById('filter_month').value = '';
+    filterPerformance();
+}
 </script>
 
 <?php

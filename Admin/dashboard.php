@@ -3,7 +3,7 @@ $active_tab = 'dashboard';
 require_once __DIR__ . '/includes/header.php';
 
 $filter_tab = isset($_GET['filter_tab']) ? $_GET['filter_tab'] : '';
-$filter_month = isset($_GET['filter_month']) ? $_GET['filter_month'] : date('Y-m');
+$filter_month = isset($_GET['filter_month']) ? $_GET['filter_month'] : '';
 
 // Fetch Data
 $kpis = getDashboardKPIs($pdo, $my_permissions, $is_super_admin, $filter_tab, $filter_month);
@@ -50,7 +50,7 @@ $tabNames = [
                 <input type="month" name="filter_month" id="filter_month" class="filter-control" style="font-size: 12px; padding: 4px 8px; max-width: 110px;" value="<?php echo htmlspecialchars($filter_month); ?>" onchange="this.form.submit()">
             </div>
             
-            <?php if ($filter_tab !== '' || $filter_month !== date('Y-m')): ?>
+            <?php if ($filter_tab !== '' || $filter_month !== ''): ?>
                 <div style="display: flex; gap: 6px; margin-left: auto;">
                     <a href="dashboard.php" class="btn btn-outline btn-sm" style="padding: 4px 8px; font-size: 12px; border-radius: 6px;"><i class="fa-solid fa-rotate-left"></i> Reset</a>
                 </div>

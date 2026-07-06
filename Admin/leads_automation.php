@@ -4,7 +4,7 @@ require_once __DIR__ . '/includes/header.php';
 
 $from_date     = isset($_GET['from_date']) ? $_GET['from_date'] : '';
 $to_date       = isset($_GET['to_date']) ? $_GET['to_date'] : '';
-$filter_month  = isset($_GET['filter_month']) ? $_GET['filter_month'] : (empty($from_date) && empty($to_date) ? date('Y-m') : '');
+$filter_month  = isset($_GET['filter_month']) ? $_GET['filter_month'] : '';
 $filter_status = isset($_GET['filter_status']) ? $_GET['filter_status'] : '';
 $sort          = isset($_GET['sort']) && strtolower($_GET['sort']) === 'asc' ? 'asc' : 'desc';
 

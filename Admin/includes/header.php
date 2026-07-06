@@ -74,7 +74,7 @@ if ($is_super_admin) {
     <link rel="icon" type="image/png" href="./assets/favicon.png">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="./assets/style.css?v=13">
+    <link rel="stylesheet" href="./assets/style.css?v=15">
     <script>
         const currentActiveTab = "<?php echo $active_tab; ?>";
     </script>
@@ -106,6 +106,9 @@ if ($is_super_admin) {
         <?php endif; ?>
         <?php if (canAccess('security', $is_super_admin, $my_permissions)): ?>
         <a href="security.php" class="msb-link <?php echo $active_tab === 'security' ? 'msb-active' : ''; ?>"><i class="fa-solid fa-shield-halved"></i><span>Security</span></a>
+        <?php endif; ?>
+        <?php if (canAccess('analytics', $is_super_admin, $my_permissions)): ?>
+        <a href="analytics.php" class="msb-link <?php echo $active_tab === 'analytics' ? 'msb-active' : ''; ?>"><i class="fa-solid fa-ranking-star"></i><span>Leaderboard</span></a>
         <?php endif; ?>
         <?php if ($is_super_admin): ?>
         <a href="admins.php" class="msb-link <?php echo $active_tab === 'admins' ? 'msb-active' : ''; ?>"><i class="fa-solid fa-users-gear"></i><span>Admin Management</span></a>
@@ -152,6 +155,11 @@ if ($is_super_admin) {
         <?php if (canAccess('security', $is_super_admin, $my_permissions)): ?>
         <li class="menu-item <?php echo $active_tab === 'security' ? 'active' : ''; ?>" data-tab="security">
             <a href="security.php"><i class="fa-solid fa-shield-halved"></i><span>Security</span></a>
+        </li>
+        <?php endif; ?>
+        <?php if (canAccess('analytics', $is_super_admin, $my_permissions)): ?>
+        <li class="menu-item <?php echo $active_tab === 'analytics' ? 'active' : ''; ?>" data-tab="analytics">
+            <a href="analytics.php"><i class="fa-solid fa-ranking-star"></i><span>Leaderboard</span></a>
         </li>
         <?php endif; ?>
         <?php if ($is_super_admin): ?>

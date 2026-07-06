@@ -36,9 +36,10 @@ function getUnreadLeadsCount($pdo, $table, $admin_id = 0) {
 function getLeads($pdo, $table, $filter_month, $filter_status, $sort, $from_date = '', $to_date = '', $admin_id = 0) {
     try {
         $lead_type = str_replace('_leads', '', $table);
+        $admin_id_val = (int)$admin_id;
         $sql = "SELECT t.*, (
                     SELECT COUNT(*) FROM admin_read_leads arl 
-                    WHERE arl.admin_id = ? AND arl.lead_type = ? AND arl.lead_id = t.id
+                    WHERE arl.admin_id = $admin_id_val AND arl.lead_type = '$lead_type' AND arl.lead_id = t.id
                 ) AS is_read_by_me, (
                     SELECT lsu.status 
                     FROM lead_status_updates lsu 
@@ -51,10 +52,10 @@ function getLeads($pdo, $table, $filter_month, $filter_status, $sort, $from_date
                     ORDER BY lsu.updated_at DESC LIMIT 1
                 ) AS latest_status_date
                 FROM `$table` t WHERE 1=1";
-        $params = [$admin_id, $lead_type];
+        $params = [];
         if (!empty($filter_month)) {
-            $sql .= " AND DATE_FORMAT(t.created_at, '%Y-%m') = ?";
-            $params[] = $filter_month;
+            $sql .= " AND t.created_at LIKE ?";
+            $params[] = $filter_month . '%';
         }
         if (!empty($from_date) && empty($to_date)) {
             $sql .= " AND DATE(t.created_at) = ?";
@@ -258,8 +259,8 @@ function getDashboardPieChartData($pdo, $permissions, $is_super_admin, $filter_t
                 FROM `$table` t WHERE 1=1";
         $params = [];
         if (!empty($filter_month)) {
-            $sql .= " AND DATE_FORMAT(t.created_at, '%Y-%m') = ?";
-            $params[] = $filter_month;
+            $sql .= " AND t.created_at LIKE ?";
+            $params[] = $filter_month . '%';
         }
 
         try {
@@ -289,4 +290,173 @@ function getDashboardPieChartData($pdo, $permissions, $is_super_admin, $filter_t
 
     return $data;
 }
+
+function getSpecificAdminPerformance($pdo, $admin_id, $filter_month = '') {
+    $admin_id = (int)$admin_id;
+    $month_cond = '';
+    $params = [];
+    if (!empty($filter_month)) {
+        $month_cond = " AND al.created_at LIKE ?";
+        $params[] = $filter_month . '%';
+    }
+
+    $lead_union = "
+        SELECT id, 'web' as lead_type, created_at FROM web_leads
+        UNION ALL
+        SELECT id, 'seo' as lead_type, created_at FROM seo_leads
+        UNION ALL
+        SELECT id, 'smm' as lead_type, created_at FROM smm_leads
+        UNION ALL
+        SELECT id, 'automation' as lead_type, created_at FROM automation_leads
+    ";
+
+    $stats = [
+        'admin_id' => $admin_id,
+        'handled_count' => 0,
+        'won_count' => 0,
+        'lost_count' => 0,
+        'conversion_rate' => 0.0,
+        'avg_response_minutes' => null,
+        'avg_conversion_minutes' => null
+    ];
+
+    try {
+        // 1. Leads Handled: unique leads updated by this admin
+        $sql = "SELECT COUNT(DISTINCT lsu.lead_id, lsu.lead_type) 
+                FROM lead_status_updates lsu
+                JOIN ($lead_union) al ON al.id = lsu.lead_id AND al.lead_type = lsu.lead_type
+                WHERE lsu.updated_by = $admin_id $month_cond";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $stats['handled_count'] = (int)$stmt->fetchColumn();
+
+        // 2. Deals Won: leads whose CURRENT latest status is 'Closed - Won' and was closed by this admin
+        $sql = "SELECT COUNT(DISTINCT lsu.lead_id, lsu.lead_type) 
+                FROM lead_status_updates lsu
+                JOIN (
+                    SELECT lead_id, lead_type, MAX(id) as max_id
+                    FROM lead_status_updates
+                    GROUP BY lead_id, lead_type
+                ) latest ON lsu.id = latest.max_id
+                JOIN ($lead_union) al ON al.id = lsu.lead_id AND al.lead_type = lsu.lead_type
+                WHERE lsu.updated_by = $admin_id AND lsu.status = 'Closed - Won' $month_cond";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $stats['won_count'] = (int)$stmt->fetchColumn();
+
+        // 3. Deals Lost: leads whose CURRENT latest status is 'Closed - Lost' and was closed by this admin
+        $sql = "SELECT COUNT(DISTINCT lsu.lead_id, lsu.lead_type) 
+                FROM lead_status_updates lsu
+                JOIN (
+                    SELECT lead_id, lead_type, MAX(id) as max_id
+                    FROM lead_status_updates
+                    GROUP BY lead_id, lead_type
+                ) latest ON lsu.id = latest.max_id
+                JOIN ($lead_union) al ON al.id = lsu.lead_id AND al.lead_type = lsu.lead_type
+                WHERE lsu.updated_by = $admin_id AND lsu.status = 'Closed - Lost' $month_cond";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $stats['lost_count'] = (int)$stmt->fetchColumn();
+
+        // Conversion Rate
+        if ($stats['handled_count'] > 0) {
+            $stats['conversion_rate'] = round(($stats['won_count'] / $stats['handled_count']) * 100, 1);
+        }
+
+        // 4. Avg First Response Time (in minutes)
+        $sql = "SELECT AVG(TIMESTAMPDIFF(MINUTE, al.created_at, lsu.first_update_time))
+                FROM (
+                    SELECT lead_id, lead_type, updated_by, MIN(updated_at) as first_update_time
+                    FROM lead_status_updates
+                    GROUP BY lead_id, lead_type
+                ) lsu
+                JOIN ($lead_union) al ON al.id = lsu.lead_id AND al.lead_type = lsu.lead_type
+                WHERE lsu.updated_by = $admin_id $month_cond";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $res = $stmt->fetchColumn();
+        $stats['avg_response_minutes'] = $res !== null ? round((float)$res, 1) : null;
+
+        // 5. Avg Conversion Time (in minutes)
+        $sql = "SELECT AVG(TIMESTAMPDIFF(MINUTE, al.created_at, lsu.updated_at))
+                FROM lead_status_updates lsu
+                JOIN ($lead_union) al ON al.id = lsu.lead_id AND al.lead_type = lsu.lead_type
+                WHERE lsu.updated_by = $admin_id AND lsu.status IN ('Closed - Won', 'Closed - Lost') $month_cond";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $res = $stmt->fetchColumn();
+        $stats['avg_conversion_minutes'] = $res !== null ? round((float)$res, 1) : null;
+
+    } catch (\PDOException $e) {
+        // Fail silent
+    }
+
+    return $stats;
+}
+
+function getAdminPerformanceLeaderboard($pdo, $filter_month = '') {
+    $sql = "SELECT 
+                au.id as admin_id,
+                au.username,
+                au.display_name,
+                au.is_super_admin
+            FROM admin_users au 
+            WHERE au.is_super_admin = 0 
+            ORDER BY au.display_name ASC";
+
+    try {
+        $stmt = $pdo->query($sql);
+        $admins = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        $leaderboard = [];
+        foreach ($admins as $admin) {
+            $stats = getSpecificAdminPerformance($pdo, $admin['admin_id'], $filter_month);
+            $stats['username'] = $admin['username'];
+            $stats['display_name'] = $admin['display_name'];
+            $stats['is_super_admin'] = $admin['is_super_admin'];
+            
+            // Fetch active permissions
+            $my_perms = [];
+            $p_stmt = $pdo->prepare("SELECT tab FROM admin_permissions WHERE admin_id = ? AND can_access = 1");
+            $p_stmt->execute([$admin['admin_id']]);
+            while ($p_row = $p_stmt->fetch(PDO::FETCH_ASSOC)) {
+                $my_perms[] = $p_row['tab'];
+            }
+            $stats['permissions'] = $my_perms;
+            
+            $leaderboard[] = $stats;
+        }
+        
+        // Sort leaderboard: Won Deals DESC, Conversion Rate DESC, Display Name ASC
+        usort($leaderboard, function($a, $b) {
+            if ($a['won_count'] !== $b['won_count']) {
+                return $b['won_count'] <=> $a['won_count'];
+            }
+            if (abs($a['conversion_rate'] - $b['conversion_rate']) > 0.001) {
+                return $b['conversion_rate'] > $a['conversion_rate'] ? 1 : -1;
+            }
+            return strcasecmp($a['display_name'], $b['display_name']);
+        });
+        
+        return $leaderboard;
+    } catch (\PDOException $e) {
+        return [];
+    }
+}
+
+function formatResponseTime($minutes) {
+    if ($minutes === null) return 'N/A';
+    if ($minutes < 60) {
+        return round($minutes) . 'm';
+    }
+    $hours = floor($minutes / 60);
+    $mins = round($minutes % 60);
+    if ($hours < 24) {
+        return "{$hours}h {$mins}m";
+    }
+    $days = floor($hours / 24);
+    $rem_hours = $hours % 24;
+    return "{$days}d {$rem_hours}h";
+}
+
 

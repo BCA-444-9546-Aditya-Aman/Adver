@@ -25,6 +25,73 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['action'])) {
 
 header('Content-Type: application/json');
 $action = $_POST['action'];
+if ($action === 'get_admin_performance') {
+    $target_admin_id = isset($_POST['admin_id']) ? (int)$_POST['admin_id'] : 0;
+    $filter_month = isset($_POST['filter_month']) ? $_POST['filter_month'] : '';
+    
+    require_once __DIR__ . '/functions.php';
+    
+    $perf = getSpecificAdminPerformance($pdo, $target_admin_id, $filter_month);
+    
+    // Format response time
+    $perf['avg_response_formatted'] = formatResponseTime($perf['avg_response_minutes']);
+    $perf['avg_conversion_formatted'] = $perf['avg_conversion_hours'] !== null ? round($perf['avg_conversion_hours'], 1) . 'h' : 'N/A';
+    
+    // Category breakdown
+    $categories = [];
+    $cats = ['web' => 'Web Leads', 'seo' => 'SEO Leads', 'smm' => 'SMM Leads', 'automation' => 'Automation Leads'];
+    foreach ($cats as $cat_key => $cat_name) {
+        $cat_handled = 0;
+        $cat_won = 0;
+        try {
+            $month_q = '';
+            $params_q = [$target_admin_id, $cat_key];
+            if (!empty($filter_month)) {
+                $month_q = " AND al.created_at LIKE ?";
+                $params_q[] = $filter_month . '%';
+            }
+            
+            $lead_table = "{$cat_key}_leads";
+            $sql = "SELECT COUNT(DISTINCT lsu.lead_id) 
+                    FROM lead_status_updates lsu
+                    JOIN `$lead_table` al ON al.id = lsu.lead_id
+                    WHERE lsu.updated_by = ? AND lsu.lead_type = ? $month_q";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params_q);
+            $cat_handled = (int)$stmt->fetchColumn();
+
+            $cat_won_params = array_merge([$cat_key], $params_q);
+            $sql = "SELECT COUNT(DISTINCT lsu.lead_id) 
+                    FROM lead_status_updates lsu
+                    JOIN (
+                        SELECT lead_id, MAX(id) as max_id
+                        FROM lead_status_updates
+                        WHERE lead_type = ?
+                        GROUP BY lead_id
+                    ) latest ON lsu.id = latest.max_id
+                    JOIN `$lead_table` al ON al.id = lsu.lead_id
+                    WHERE lsu.updated_by = ? AND lsu.lead_type = ? AND lsu.status = 'Closed - Won' $month_q";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($cat_won_params);
+            $cat_won = (int)$stmt->fetchColumn();
+        } catch (\PDOException $e) {}
+        
+        $categories[] = [
+            'key' => $cat_key,
+            'name' => $cat_name,
+            'handled' => $cat_handled,
+            'won' => $cat_won,
+            'rate' => $cat_handled > 0 ? round(($cat_won / $cat_handled) * 100, 1) : 0
+        ];
+    }
+    
+    echo json_encode([
+        'success' => true,
+        'metrics' => $perf,
+        'categories' => $categories
+    ]);
+    exit;
+}
 
 if ($action === 'mark_as_read') {
     $type = isset($_POST['type']) ? $_POST['type'] : '';
@@ -68,7 +135,7 @@ if ($action === 'add_admin') {
         $ins->execute([$username, $hash, '', $email, $current_admin_id]);
         $new_id = (int)$pdo->lastInsertId();
 
-        $all_tabs = ['web', 'seo', 'smm', 'automation', 'security'];
+        $all_tabs = ['web', 'seo', 'smm', 'automation', 'security', 'analytics'];
         $perm_ins = $pdo->prepare("INSERT INTO admin_permissions (admin_id, tab, can_access) VALUES (?, ?, ?)");
         foreach ($all_tabs as $tab) {
             $perm_ins->execute([$new_id, $tab, in_array($tab, $perms) ? 1 : 0]);
@@ -104,7 +171,7 @@ if ($action === 'update_permissions') {
     if (!$is_super_admin) { echo json_encode(['success' => false, 'error' => 'Unauthorized.']); exit; }
     $target_id = intval($_POST['admin_id'] ?? 0);
     $perms     = isset($_POST['permissions']) ? (array)$_POST['permissions'] : [];
-    $all_tabs  = ['web', 'seo', 'smm', 'automation', 'security'];
+    $all_tabs  = ['web', 'seo', 'smm', 'automation', 'security', 'analytics'];
     try {
         $ups = $pdo->prepare("INSERT INTO admin_permissions (admin_id, tab, can_access) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE can_access = VALUES(can_access)");
         foreach ($all_tabs as $tab) {
@@ -214,9 +281,7 @@ if ($action === 'get_latest_data') {
             $p_stmt = $pdo->prepare("SELECT tab, can_access FROM admin_permissions WHERE admin_id = ?");
             $p_stmt->execute([$current_admin_id]);
             while ($row = $p_stmt->fetch()) {
-                if ((bool)$row['can_access']) {
-                    $my_permissions[] = $row['tab'];
-                }
+                $my_permissions[$row['tab']] = (bool)$row['can_access'];
             }
         } catch (\PDOException $e) {}
     }
@@ -226,7 +291,7 @@ if ($action === 'get_latest_data') {
     $tabs = ['web', 'seo', 'smm', 'automation'];
     foreach ($tabs as $t) {
         $unreads[$t] = 0;
-        if ($is_super_admin || in_array($t, $my_permissions)) {
+        if (canAccess($t, $is_super_admin, $my_permissions)) {
             $table = "{$t}_leads";
             $unreads[$t] = getUnreadLeadsCount($pdo, $table, $current_admin_id);
         }

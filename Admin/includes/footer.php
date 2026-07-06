@@ -70,6 +70,10 @@
                         <span class="pti-label"><i class="fa-solid fa-shield-halved"></i> Security</span>
                         <label class="toggle-switch"><input type="checkbox" id="perm_security"><span class="toggle-slider"></span></label>
                     </label>
+                    <label class="permission-toggle-item">
+                        <span class="pti-label"><i class="fa-solid fa-ranking-star"></i> Leaderboard</span>
+                        <label class="toggle-switch"><input type="checkbox" id="perm_analytics"><span class="toggle-slider"></span></label>
+                    </label>
                 </div>
             </div>
 
@@ -556,7 +560,7 @@ function submitAddAdmin() {
         errEl.style.display = 'block'; return;
     }
     const perms = [];
-    ['web','seo','smm','automation','security'].forEach(t => { if (document.getElementById('perm_'+t).checked) perms.push(t); });
+    ['web','seo','smm','automation','security','analytics'].forEach(t => { if (document.getElementById('perm_'+t).checked) perms.push(t); });
     const btn = document.getElementById('addAdminSubmitBtn');
     btn.disabled=true; btn.innerHTML='<span class="btn-spinner"></span> Creating...';
     const fd = new FormData();
