@@ -113,8 +113,9 @@ if ($is_super_admin) {
         <?php if ($is_super_admin): ?>
         <a href="admins.php" class="msb-link <?php echo $active_tab === 'admins' ? 'msb-active' : ''; ?>"><i class="fa-solid fa-users-gear"></i><span>Admin Management</span></a>
         <?php endif; ?>
+        <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.07); margin: 10px 4px;">
+        <a href="logout.php" class="msb-logout" style="margin-top: 0;"><i class="fa-solid fa-right-from-bracket"></i><span>Log Out</span></a>
     </nav>
-    <div class="msb-footer"><a href="logout.php" class="msb-logout"><i class="fa-solid fa-right-from-bracket"></i><span>Log Out</span></a></div>
 </div>
 
 <!-- Desktop Sidebar -->
